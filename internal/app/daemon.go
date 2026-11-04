@@ -33,6 +33,8 @@ func Schedule(ctx context.Context, opts Options, c clock.Clock, loop bool, noWai
 	var lock *os.File
 	if os.Getenv("AGENTCRON_TICK_WORKER") == "1" {
 		lock = os.NewFile(3, "daemon.lock")
+		// Keep the transferred lock in this owner, never in its runner children.
+		syscall.CloseOnExec(int(lock.Fd()))
 		if err = lock.Truncate(0); err == nil {
 			_, err = lock.WriteAt([]byte(fmt.Sprintln(os.Getpid())), 0)
 		}

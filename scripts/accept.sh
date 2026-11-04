@@ -235,11 +235,25 @@ if pgrep -f "$scratch/bin/claude" >"$scratch/survivors"; then echo "surviving fa
 # no-wait keeps an inherited lock in a detached worker until the run ends.
 "$bin" run due >/dev/null
 no_wait_output="$(FAKE_MODE=sleep FAKE_SLEEP=1s "$bin" tick --no-wait 2>&1)"
- test -z "$no_wait_output"
+test -z "$no_wait_output"
 wait_running due
 "$bin" tick >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 4
 attempts=0
 until "$bin" runs due --limit 1 --json | grep '"state":"succeeded"' >/dev/null; do
   attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
 done
+# A detached worker's runner must not inherit the daemon lock descriptor.
+"$bin" run restart >/dev/null
+no_wait_output="$(FAKE_MODE=sleep FAKE_SLEEP=90s "$bin" tick --no-wait 2>&1)"
+test -z "$no_wait_output"
+wait_running restart
+worker_pid="$("$bin" doctor --json | sed -E 's/.*"daemon_pid":([0-9]+).*/\1/')"
+kill -KILL "$worker_pid"
+attempts=0
+until "$bin" doctor --json | grep '"daemon_pid":0' >/dev/null; do
+  attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
+done
+"$bin" tick >"$scratch/tick-out" 2>"$scratch/tick-err"
+expect_state restart unknown
+pkill -f "$scratch/bin/claude" 2>/dev/null || :
 echo "accept: ok"
