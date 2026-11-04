@@ -60,6 +60,7 @@ func ApproveJob(ctx context.Context, opts Options, c clock.Clock, name string) e
 	if st.Approved {
 		return nil
 	}
+	resetNextFire(&st, *v.Job, s.now)
 	st.Approved, st.Paused, st.UpdatedAt = true, false, s.now
 	return s.db.PutJobState(ctx, st)
 }

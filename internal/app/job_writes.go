@@ -100,6 +100,9 @@ func PauseJob(ctx context.Context, opts Options, c clock.Clock, name string, pau
 		return err
 	}
 	state := *view.State
+	if state.Paused && !paused {
+		resetNextFire(&state, *view.Job, s.now)
+	}
 	state.Paused = paused
 	return s.db.PutJobState(ctx, state)
 }
