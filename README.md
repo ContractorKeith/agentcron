@@ -113,7 +113,7 @@ created_by = "cli"
 
 Runs get a preamble with the job, run id, fire time, previous state and output path, plus the memory note when enabled. Repository runs use branches `agentcron/<job>/<run-id>`; clean worktrees are removed, dirty or ahead worktrees are kept. Inspect with `agentcron worktrees`; preview cleanup with `agentcron prune --dry-run`. Pause/resume with `agentcron pause <name>` / `agentcron resume <name>`.
 
-`prune` keeps dirty or ahead worktrees and lists the files/commits `--force` would destroy; `prune --dry-run` lists all candidates.
+`prune` keeps dirty or ahead worktrees and lists the files/commits `--force` would destroy; `prune --dry-run` shows which worktrees would be kept or removed, including files and commits protected unless `--force` is set.
 
 ## Memory with mdkb
 

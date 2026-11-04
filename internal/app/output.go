@@ -105,16 +105,22 @@ func Prune(ctx context.Context, opts Options, c clock.Clock, dry, force bool) ([
 			continue
 		}
 
-		if !dry && !force {
+		if dry || !force {
 			changes, e := runner.WorktreeChanges(ctx, r.Worktree)
 			if e != nil {
 				warnings = append(warnings, e)
 				continue
 			}
-			if changes != "" {
+			if changes != "" && !force {
 				r.Error = "kept; --force would destroy: " + changes
 				result = append(result, r)
 				continue
+			}
+			if dry {
+				r.Error = "would remove"
+				if changes != "" {
+					r.Error += "; --force destroys: " + changes
+				}
 			}
 		}
 		result = append(result, r)

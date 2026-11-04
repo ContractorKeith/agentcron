@@ -19,9 +19,6 @@ func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, 
 	if err := checkScheduling(opts); err != nil {
 		return Run{}, err
 	}
-	if opts.ReadOnly {
-		return Run{}, &Error{Usage, fmt.Errorf("now preview is read-only")}
-	}
 	s, err := openJobs(ctx, opts, c, false)
 	if err != nil {
 		return Run{}, err
