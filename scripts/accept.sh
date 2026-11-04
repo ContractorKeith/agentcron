@@ -129,7 +129,7 @@ expect_state attention blocked_config
 "$bin" add short --schedule @daily --runner claude --prompt hi --timeout 150ms >/dev/null
 FAKE_MODE=ignore-term FAKE_SLEEP=20s non_success "$bin" run short --now
 expect_state short timed_out
-FAKE_MODE=spawn-child FAKE_SLEEP=2s non_success "$bin" run short --now
+FAKE_MODE=spawn-child FAKE_SLEEP=20s non_success "$bin" run short --now
 expect_state short timed_out
 if pgrep -f "$scratch/bin/claude" >"$scratch/survivors"; then echo "surviving fake process"; exit 1; fi
 FAKE_MODE=sleep FAKE_SLEEP=4s "$bin" run cancel --now >"$scratch/cancel-id" 2>"$scratch/cancel-err" &

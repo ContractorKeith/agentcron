@@ -119,6 +119,7 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	for active {
 		select {
 		case waitErr = <-done:
+			teardownGroup(pid, x.Clock, x.Grace)
 			active = false
 		case <-ctx.Done():
 			state = "cancelled"
@@ -138,8 +139,6 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	}
 	if _, e := os.Stat(filepath.Join(dir, "cancel")); e == nil && state == "succeeded" {
 		state = "cancelled"
-		<-x.Clock.After(x.Grace)
-		_ = syscall.Kill(-pid, syscall.SIGKILL)
 	}
 	code := cmd.ProcessState.ExitCode()
 	r.ExitCode = &code

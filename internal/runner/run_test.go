@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -18,6 +20,18 @@ func TestOutcomes(t *testing.T) {
 	for _, tc := range []struct{ mode, expect, state string }{{"ok", "DONE", "succeeded"}, {"fail", "", "failed"}, {"ok", "missing", "attention"}, {"ignore-term", "", "timed_out"}, {"spawn-child", "", "timed_out"}, {"noisy", "", "succeeded"}} {
 		t.Run(tc.mode+tc.state, func(t *testing.T) {
 			t.Setenv("FAKE_MODE", tc.mode)
+			if tc.mode == "spawn-child" {
+				pidFile := filepath.Join(x.DataDir, "outcome-child")
+				t.Setenv("FAKE_CHILD_PID", pidFile)
+				defer func() {
+					b, _ := os.ReadFile(pidFile)
+					pid, _ := strconv.Atoi(string(b))
+					if pid > 0 {
+						_ = syscall.Kill(pid, syscall.SIGKILL)
+						reapDescendant(pid)
+					}
+				}()
+			}
 			t.Setenv("FAKE_NOISY_STREAM", "both")
 			j.Expect = tc.expect
 			j.Timeout = "5s"

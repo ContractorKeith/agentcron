@@ -33,25 +33,45 @@ func lock(data, job string) (*os.File, bool, error) {
 	}
 	return f, true, nil
 }
+func groupExists(pid int) bool { return syscall.Kill(-pid, 0) == nil }
+
+// teardownGroup returns immediately when the group is gone. Descendants get a
+// bounded TERM grace even after their leader has already been reaped.
+func teardownGroup(pid int, c clock.Clock, grace time.Duration) {
+	if !groupExists(pid) {
+		return
+	}
+	_ = syscall.Kill(-pid, syscall.SIGTERM)
+	waitGroup(pid, c, c.After(grace))
+}
+func waitGroup(pid int, c clock.Clock, deadline <-chan time.Time) {
+	for groupExists(pid) {
+		select {
+		case <-deadline:
+			_ = syscall.Kill(-pid, syscall.SIGKILL)
+			return
+		case <-c.After(50 * time.Millisecond):
+		}
+	}
+}
 func terminate(pid int, done <-chan error, c clock.Clock, grace time.Duration) error {
 	_ = syscall.Kill(-pid, syscall.SIGTERM)
-	// Even if the leader exits, descendants may ignore TERM. Always kill the group
-	// after the grace period; the leader is reaped by the caller's Wait goroutine.
-	var result error
 	deadline := c.After(grace)
 	select {
-	case result = <-done:
+	case result := <-done:
+		if groupExists(pid) {
+			_ = syscall.Kill(-pid, syscall.SIGTERM)
+			waitGroup(pid, c, deadline)
+		}
+		return result
 	case <-deadline:
 		_ = syscall.Kill(-pid, syscall.SIGKILL)
 		return <-done
 	}
-	<-deadline
-	_ = syscall.Kill(-pid, syscall.SIGKILL)
-	return result
 }
 
 // ProcessStart uses ps on both Linux and macOS (macOS has no /proc). ps lstart
-// has second precision. Record the observed process start in started_at and require
+// has second precision. Record the observed process start in proc_start and require
 // equality before signalling: a later recycled PID must also be refused.
 func ProcessStart(pid int) (time.Time, error) {
 	cmd := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "lstart=")

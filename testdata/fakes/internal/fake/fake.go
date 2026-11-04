@@ -31,6 +31,11 @@ func run() error {
 	if mode == "ignore-term" {
 		signal.Ignore(syscall.SIGTERM)
 	}
+	if mode == "ignore-term" && os.Getenv("FAKE_CHILD_PID") != "" {
+		if err := os.WriteFile(os.Getenv("FAKE_CHILD_PID"), []byte(fmt.Sprint(os.Getpid())), 0600); err != nil {
+			return err
+		}
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -93,21 +98,26 @@ func run() error {
 		}
 	case "dirty":
 		return os.WriteFile("result.txt", []byte("DONE\n"), 0600)
-	case "spawn-child":
-		terms := make(chan os.Signal, 1)
-		signal.Notify(terms, syscall.SIGTERM)
-		defer signal.Stop(terms)
+	case "spawn-child", "background":
 		child := exec.Command(os.Args[0])
 		child.Env = childEnv()
+		child.Stdin = os.Stdin
 		if err := child.Start(); err != nil {
 			return err
 		}
-		// The runner signals the process group; reap the child before returning normally.
-		select {
-		case <-time.After(duration):
-		case <-terms:
+		if path := os.Getenv("FAKE_CHILD_PID"); path != "" {
+			for i := 0; i < 100; i++ {
+				if _, err := os.Stat(path); err == nil {
+					break
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
 		}
-		_ = child.Process.Signal(syscall.SIGTERM)
+		if mode == "background" {
+			return nil
+		}
+		// Keep the parent alive to reap its TERM-ignoring child; never forward signals.
+		signal.Ignore(syscall.SIGTERM)
 		return child.Wait()
 	default:
 		return fmt.Errorf("unknown FAKE_MODE %q", mode)
@@ -124,5 +134,5 @@ func childEnv() []string {
 			result = append(result, entry)
 		}
 	}
-	return append(result, "FAKE_MODE=sleep", "FAKE_RECORD=")
+	return append(result, "FAKE_MODE=ignore-term", "FAKE_RECORD=", "FAKE_STDIN=")
 }
