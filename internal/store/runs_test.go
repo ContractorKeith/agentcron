@@ -120,6 +120,13 @@ func TestPreviousRunExcludesLaterQueueEntries(t *testing.T) {
 		if e = s.CreateRun(ctx, r); e != nil {
 			t.Fatal(e)
 		}
+		if len(runs) == 0 {
+			r.State = "skipped"
+			r.EndedAt = &at
+			if e = s.FinishRun(ctx, r); e != nil {
+				t.Fatal(e)
+			}
+		}
 		runs = append(runs, r)
 	}
 	previous, e := s.PreviousRun(ctx, runs[1])

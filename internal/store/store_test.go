@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -161,5 +163,16 @@ func TestRollbackAndUniqueFire(t *testing.T) {
 	}
 	if _, err := s.db.Exec(insert, "two"); err == nil {
 		t.Fatal("duplicate fire accepted")
+	}
+}
+
+func TestCorruptLedgerHasRecoveryInstructions(t *testing.T) {
+	path := scratchDB(t)
+	if e := os.WriteFile(path, []byte("not a sqlite database"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	_, e := Open(context.Background(), path)
+	if e == nil || !strings.Contains(e.Error(), path) || !strings.Contains(e.Error(), "move it aside") || !strings.Contains(e.Error(), "agentcron init") {
+		t.Fatalf("%v", e)
 	}
 }

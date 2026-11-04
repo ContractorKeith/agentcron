@@ -94,6 +94,7 @@ func Prune(ctx context.Context, opts Options, c clock.Clock, dry bool) ([]Run, e
 		return nil, err
 	}
 	result := []Run{}
+	var warnings []error
 	for _, r := range all {
 		if !r.Kept || !store.Terminal(r.State) {
 			continue
@@ -101,7 +102,8 @@ func Prune(ctx context.Context, opts Options, c clock.Clock, dry bool) ([]Run, e
 		// Only remove the exact run path managed by this data directory.
 		expected := filepath.Join(s.config.DataDir, "worktrees", r.Job, r.ID)
 		if r.Worktree != expected {
-			return nil, fmt.Errorf("unexpected worktree path %q", r.Worktree)
+			warnings = append(warnings, fmt.Errorf("unexpected worktree path %q", r.Worktree))
+			continue
 		}
 		result = append(result, r)
 		if dry {
@@ -119,5 +121,5 @@ func Prune(ctx context.Context, opts Options, c clock.Clock, dry bool) ([]Run, e
 			return nil, err
 		}
 	}
-	return result, nil
+	return result, errors.Join(warnings...)
 }

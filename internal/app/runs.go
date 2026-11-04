@@ -2,8 +2,8 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/jobs"
@@ -14,6 +14,9 @@ import (
 type Run = store.Run
 
 func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, wait bool) (Run, error) {
+	if wait && !now {
+		return Run{}, &Error{Usage, fmt.Errorf("the daemon executes queued runs; use --now to run inline")}
+	}
 	if opts.ReadOnly {
 		return Run{}, &Error{Usage, fmt.Errorf("now preview is read-only")}
 	}
@@ -43,24 +46,12 @@ func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, 
 		return r, err
 	}
 	if now {
-		r, err = (runner.Runner{DB: s.db, Clock: c, DataDir: s.config.DataDir, JobsDir: s.config.JobsDir()}).Run(ctx, j, r, approved)
+		r, err = (runner.Runner{DB: s.db, Clock: c, DataDir: s.config.DataDir, JobsDir: s.config.JobsDir(), ConfigDir: s.config.ConfigDir}).Run(ctx, j, r, approved)
 	}
 	if err != nil {
 		return r, err
 	}
-	if wait && !now {
-		for !store.Terminal(r.State) {
-			select {
-			case <-ctx.Done():
-				return r, ctx.Err()
-			case <-c.After(100 * time.Millisecond):
-			}
-			r, err = s.db.GetRun(ctx, r.ID)
-			if err != nil {
-				return r, err
-			}
-		}
-	}
+
 	if (now || wait) && r.State != "succeeded" {
 		return r, &Error{RunUnsuccessful, fmt.Errorf("run %s: %s", r.ID, r.State)}
 	}
@@ -89,5 +80,9 @@ func CancelRun(ctx context.Context, opts Options, c clock.Clock, id string) erro
 		return err
 	}
 	defer s.db.Close()
-	return runner.Cancel(ctx, s.db, s.config.DataDir, id)
+	err = runner.Cancel(ctx, s.db, s.config.DataDir, id)
+	if errors.Is(err, store.ErrRunNotFound) {
+		return &Error{Usage, err}
+	}
+	return err
 }

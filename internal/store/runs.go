@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base32"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -124,8 +125,15 @@ func scanRun(row interface{ Scan(...any) error }) (Run, error) {
 	r.ScheduledFor = r.ScheduledFor.UTC()
 	return r, nil
 }
+
+var ErrRunNotFound = errors.New("run not found")
+
 func (s *Store) GetRun(ctx context.Context, id string) (Run, error) {
-	return scanRun(s.db.QueryRowContext(ctx, "SELECT "+runColumns+" FROM runs WHERE id=?", id))
+	r, err := scanRun(s.db.QueryRowContext(ctx, "SELECT "+runColumns+" FROM runs WHERE id=?", id))
+	if errors.Is(err, sql.ErrNoRows) {
+		err = fmt.Errorf("%w: %s", ErrRunNotFound, id)
+	}
+	return r, err
 }
 func (s *Store) ListRuns(ctx context.Context, job, state string, limit int) ([]Run, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT "+runColumns+" FROM runs WHERE (?='' OR job=?) AND (?='' OR state=?) ORDER BY rowid DESC LIMIT ?", job, job, state, state, limit)
@@ -153,9 +161,9 @@ func (s *Store) ClearKept(ctx context.Context, id string) error {
 	})
 }
 
-// PreviousRun excludes later queue entries when an older run is finally claimed.
+// PreviousRun finds terminal history independently of enqueue order.
 func (s *Store) PreviousRun(ctx context.Context, r Run) (*Run, error) {
-	previous, err := scanRun(s.db.QueryRowContext(ctx, "SELECT "+runColumns+" FROM runs WHERE job=? AND rowid<(SELECT rowid FROM runs WHERE id=?) ORDER BY rowid DESC LIMIT 1", r.Job, r.ID))
+	previous, err := scanRun(s.db.QueryRowContext(ctx, "SELECT "+runColumns+" FROM runs WHERE state NOT IN ('queued','claimed','running') AND job=? AND id<>? ORDER BY rowid DESC LIMIT 1", r.Job, r.ID))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

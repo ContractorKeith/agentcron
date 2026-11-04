@@ -17,10 +17,10 @@ import (
 )
 
 type Runner struct {
-	DB               *store.Store
-	Clock            clock.Clock
-	DataDir, JobsDir string
-	Grace            time.Duration
+	DB                          *store.Store
+	Clock                       clock.Clock
+	DataDir, JobsDir, ConfigDir string
+	Grace                       time.Duration
 }
 
 func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool) (store.Run, error) {
@@ -119,7 +119,7 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	if last != nil {
 		lastOutput = filepath.Join(x.DataDir, "runs", last.ID, "stdout.log")
 	}
-	cmd.Env = runEnv(j, r, lastOutput)
+	cmd.Env = x.runEnv(j, r, lastOutput)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	started := x.Clock.Now().UTC()
 	if err = cmd.Start(); err != nil {

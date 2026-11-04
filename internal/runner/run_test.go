@@ -118,7 +118,7 @@ func TestAdaptersAndEnvironment(t *testing.T) {
 			if !strings.HasPrefix(got.Cwd, root+string(filepath.Separator)) {
 				t.Fatal(got.Cwd)
 			}
-			for key, want := range map[string]string{"AGENTCRON_JOB": j.Name, "AGENTCRON_RUN_ID": r.ID, "AGENTCRON_WORKDIR": r.Worktree, "AGENTCRON_SCHEDULED_FOR": r.ScheduledFor.Format(time.RFC3339Nano)} {
+			for key, want := range map[string]string{"AGENTCRON_CONFIG_DIR": filepath.Dir(x.JobsDir), "AGENTCRON_DATA_DIR": x.DataDir, "AGENTCRON_JOB": j.Name, "AGENTCRON_RUN_ID": r.ID, "AGENTCRON_WORKDIR": r.Worktree, "AGENTCRON_SCHEDULED_FOR": r.ScheduledFor.Format(time.RFC3339Nano)} {
 				if got.Env[key] != want {
 					t.Fatalf("%s=%s", key, got.Env[key])
 				}
