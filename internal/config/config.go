@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -17,7 +18,7 @@ type Options struct {
 }
 
 type Config struct {
-	ConfigDir            string `toml:"config_dir"`
+	ConfigDir            string `toml:"-"`
 	DataDir              string `toml:"data_dir"`
 	Concurrency          int    `toml:"concurrency"`
 	KeepRuns             int    `toml:"keep_runs"`
@@ -30,7 +31,7 @@ func (c Config) JobsDir() string  { return filepath.Join(c.ConfigDir, "jobs") }
 func (c Config) Database() string { return filepath.Join(c.DataDir, "agentcron.db") }
 
 // Load finds config.toml using flag > env > XDG, then overlays paths in the same order.
-// A config_dir in that file selects the effective directory; it does not load a second file.
+// The config directory stays with that source; only data_dir can come from the file.
 func Load(opts Options) (Config, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -43,12 +44,18 @@ func Load(opts Options) (Config, error) {
 		DataDir:     filepath.Join(dataHome, "agentcron"),
 		Concurrency: 2, KeepRuns: 50,
 	}
-	source := first(opts.ConfigDir, os.Getenv("AGENTCRON_CONFIG_DIR"), c.ConfigDir)
-	if _, err := toml.DecodeFile(filepath.Join(source, "config.toml"), &c); err != nil && !os.IsNotExist(err) {
+	c.ConfigDir, err = absolutePath(first(opts.ConfigDir, os.Getenv("AGENTCRON_CONFIG_DIR"), c.ConfigDir), home)
+	if err != nil {
+		return Config{}, err
+	}
+	defaultData := c.DataDir
+	if _, err := toml.DecodeFile(c.File(), &c); err != nil && !os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("read config: %w", err)
 	}
-	c.ConfigDir = first(opts.ConfigDir, os.Getenv("AGENTCRON_CONFIG_DIR"), c.ConfigDir)
-	c.DataDir = first(opts.DataDir, os.Getenv("AGENTCRON_DATA_DIR"), c.DataDir)
+	c.DataDir, err = absolutePath(first(opts.DataDir, os.Getenv("AGENTCRON_DATA_DIR"), c.DataDir, defaultData), home)
+	if err != nil {
+		return Config{}, err
+	}
 	if c.Concurrency < 1 || c.KeepRuns < 0 {
 		return Config{}, fmt.Errorf("concurrency must be positive and keep_runs nonnegative")
 	}
@@ -62,4 +69,13 @@ func first(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func absolutePath(path, home string) (string, error) {
+	if path == "~" {
+		path = home
+	} else if strings.HasPrefix(path, "~/") {
+		path = filepath.Join(home, path[2:])
+	}
+	return filepath.Abs(path)
 }

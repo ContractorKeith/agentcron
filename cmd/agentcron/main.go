@@ -29,7 +29,7 @@ func newRoot() *cobra.Command {
 	}
 	root.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Print JSON")
 	root.PersistentFlags().BoolVar(&quiet, "quiet", false, "Suppress success output (except JSON)")
-	root.PersistentFlags().StringVar(&opts.ConfigDir, "config", "", "Config directory (flag > AGENTCRON_CONFIG_DIR > file > XDG)")
+	root.PersistentFlags().StringVar(&opts.ConfigDir, "config", "", "Config directory (flag > AGENTCRON_CONFIG_DIR > XDG)")
 	root.PersistentFlags().StringVar(&opts.DataDir, "data-dir", "", "Data directory (flag > AGENTCRON_DATA_DIR > file > XDG)")
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return &app.Error{Code: app.Usage, Err: err} })
 	output := func(cmd *cobra.Command, value any, format string, args ...any) error {

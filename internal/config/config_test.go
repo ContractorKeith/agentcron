@@ -55,7 +55,7 @@ func TestPrecedence(t *testing.T) {
 				if err := os.MkdirAll(source, 0o700); err != nil {
 					t.Fatal(err)
 				}
-				contents := "config_dir = '" + paths["file"].ConfigDir + "'\ndata_dir = '" + paths["file"].DataDir + "'\nconcurrency = 4\nkeep_runs = 7\nallow_agent_scheduling = true\nmdkb_root = 'scratch-kb'\n"
+				contents := "data_dir = '" + paths["file"].DataDir + "'\nconcurrency = 4\nkeep_runs = 7\nallow_agent_scheduling = true\nmdkb_root = 'scratch-kb'\n"
 				if err := os.WriteFile(filepath.Join(source, "config.toml"), []byte(contents), 0o600); err != nil {
 					t.Fatal(err)
 				}
@@ -65,6 +65,9 @@ func TestPrecedence(t *testing.T) {
 				t.Fatal(err)
 			}
 			want := paths[tc.want]
+			if tc.want == "file" {
+				want.ConfigDir = paths["xdg"].ConfigDir
+			}
 			if got.ConfigDir != want.ConfigDir || got.DataDir != want.DataDir {
 				t.Fatalf("paths = %s, %s; want %+v", got.ConfigDir, got.DataDir, want)
 			}
