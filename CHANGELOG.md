@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.0 — unreleased
+## v0.1.0 — 2026-11-04
 
 - M0: Go CLI, XDG configuration, SQLite ledger, fake runners and macOS/Linux acceptance CI.
 - M1: TOML job files, validation, job management and timezone-aware schedules.

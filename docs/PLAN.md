@@ -1,6 +1,6 @@
 # agentcron — Build Plan
 
-Status: v0.1.0 release candidate; skeptic-review pending
+Status: v0.1.0 released — 2026-11-04: M0–M7 shipped, skeptic round 1 (#17–#28) fixed in #29 and re-checked on Linux and macOS.
 scheduler, OpenClaw cron, omarchy-agentcron, reeschan/agentcron; process model mdkb.
 
 ## 1. Goal

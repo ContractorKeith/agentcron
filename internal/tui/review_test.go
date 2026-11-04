@@ -114,7 +114,8 @@ func TestReadmeDescribesPreRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(text), "**Status:** pre-release; see [the plan]") || strings.Contains(string(text), "planned, no code yet") {
+	// Pin the fact (a status line exists and never claims no code), not its wording.
+	if !strings.Contains(string(text), "**Status:**") || strings.Contains(string(text), "planned, no code yet") {
 		t.Fatal("README still describes an unimplemented project")
 	}
 }

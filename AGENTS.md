@@ -8,7 +8,7 @@ knowledge base. "Done" for v1 is every row marked v1 in `docs/PLAN.md` §3 passi
 `scripts/accept.sh` on macOS and Linux.
 
 ## Status
-v0.1.0 release candidate; skeptic-review pending
+v0.1.0 released — 2026-11-04: M0–M7 shipped, skeptic round 1 (#17–#28) fixed in #29 and re-checked on Linux and macOS.
 
 ## Commands
 ```bash

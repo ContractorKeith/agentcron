@@ -26,7 +26,14 @@ func TestReleaseDocumentation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(plan), "Status: v0.1.0 release candidate; skeptic-review pending") {
-		t.Error("stale PLAN status")
+	// Pin the fact that PLAN and AGENTS agree, not the status wording.
+	agents, err := os.ReadFile("../../AGENTS.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, after, ok := strings.Cut(string(agents), "## Status\n")
+	status, _, _ := strings.Cut(after, "\n")
+	if !ok || status == "" || !strings.Contains(string(plan), "Status: "+status) {
+		t.Errorf("PLAN status does not match AGENTS.md status %q", status)
 	}
 }

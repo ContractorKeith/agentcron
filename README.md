@@ -2,7 +2,7 @@
 
 Schedule recurring agent work on your own Mac or Linux machine. One Go binary runs a daemon, CLI, stdio MCP server and TUI: jobs fire on cron-style schedules, launch Claude Code, Codex or any command in a fresh git worktree (or scratch directory), and record their output in a SQLite run ledger. Optional [mdkb](https://github.com/ContractorKeith/mdkb) memory notes let each job build on its previous work. Agents can propose jobs over MCP; a human approves them before they run.
 
-**Status:** pre-release; see [the plan](docs/PLAN.md), [changelog](CHANGELOG.md) and [glossary](CONTEXT.md). v0.1.0 release candidate; skeptic review pending. MIT licensed.
+**Status:** v0.1.0 (2026-11-04); see [the plan](docs/PLAN.md), [changelog](CHANGELOG.md) and [glossary](CONTEXT.md). MIT licensed.
 
 ## Install
 
