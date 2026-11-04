@@ -24,7 +24,7 @@ type Runner struct {
 	Observe                     func(store.Run)
 }
 
-func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool) (store.Run, error) {
+func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool) (store.Run, error) {
 	if x.Grace == 0 {
 		x.Grace = 10 * time.Second
 	}
