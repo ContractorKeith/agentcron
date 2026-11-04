@@ -17,6 +17,9 @@ func TestCapturedEnvironment(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if d.Environment["PATH"] != "/bin:/tools" || d.Environment["MDKB_ROOT"] != "/kb & tools" {
+			t.Fatal(d.Environment)
+		}
 		if !strings.Contains(d.Unit, "MDKB_ROOT") {
 			t.Error(d.Unit)
 		}
