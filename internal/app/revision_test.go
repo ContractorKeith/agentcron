@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +23,7 @@ func TestCancelUnknownReturnsUsage(t *testing.T) {
 		t.Fatalf("code=%d err=%v", Code(e), e)
 	}
 }
-func TestWaitWithoutInlineIsRefused(t *testing.T) {
+func TestQueuedWaitHonorsContext(t *testing.T) {
 	opts := isolated(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
@@ -39,7 +40,7 @@ func TestWaitWithoutInlineIsRefused(t *testing.T) {
 		t.Fatal(e)
 	}
 	_, e := RunJob(ctx, opts, c, j.Name, false, true)
-	if Code(e) != Usage || !strings.Contains(e.Error(), "the daemon executes queued runs; use --now to run inline") {
+	if !errors.Is(e, context.DeadlineExceeded) {
 		t.Fatalf("%v", e)
 	}
 }

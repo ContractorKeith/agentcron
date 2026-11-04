@@ -9,6 +9,8 @@ import (
 	"os/exec"
 
 	"github.com/ContractorKeith/agentcron/internal/config"
+	"github.com/ContractorKeith/agentcron/internal/daemon"
+	"github.com/ContractorKeith/agentcron/internal/service"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
@@ -52,15 +54,17 @@ func Init(ctx context.Context, opts Options) error {
 }
 
 type Health struct {
-	ConfigDir     bool   `json:"config_dir"`
-	DataDir       bool   `json:"data_dir"`
-	SchemaVersion int    `json:"schema_version"`
-	Git           bool   `json:"git"`
-	Claude        bool   `json:"claude"`
-	Codex         bool   `json:"codex"`
-	MDKB          bool   `json:"mdkb"`
-	ConfigPath    string `json:"-"`
-	DataPath      string `json:"-"`
+	Service       service.State `json:"service"`
+	DaemonPID     int           `json:"daemon_pid"`
+	ConfigDir     bool          `json:"config_dir"`
+	DataDir       bool          `json:"data_dir"`
+	SchemaVersion int           `json:"schema_version"`
+	Git           bool          `json:"git"`
+	Claude        bool          `json:"claude"`
+	Codex         bool          `json:"codex"`
+	MDKB          bool          `json:"mdkb"`
+	ConfigPath    string        `json:"-"`
+	DataPath      string        `json:"-"`
 }
 
 // Doctor inspects paths and executable presence without creating a missing ledger.
@@ -85,6 +89,15 @@ func Doctor(ctx context.Context, opts Options) (Health, error) {
 		return h, err
 	}
 	defer db.Close()
+	o, e := serviceOptions(opts)
+	if e != nil {
+		return h, e
+	}
+	h.Service, e = service.Status(ctx, o, service.Exec{})
+	if e != nil {
+		return h, e
+	}
+	h.DaemonPID = daemon.Holder(c.DataDir)
 	h.SchemaVersion, err = db.SchemaVersion(ctx)
 	return h, err
 }

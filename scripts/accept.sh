@@ -9,7 +9,9 @@ cd "$(dirname "$0")/.."
 scratch="$(mktemp -d)"
 cleanup() {
   # Join every inline owner even if a live assertion fails.
-  for owner in ${cancel_owner-} ${overlap_owner-}; do wait "$owner" 2>/dev/null || :; done
+  for owner in ${daemon_owner-}; do kill "$owner" 2>/dev/null || :; done
+  if test -d "$scratch/bin"; then pkill -f "$scratch/bin/claude" 2>/dev/null || :; fi
+  for owner in ${daemon_owner-} ${cancel_owner-} ${overlap_owner-} ${queue_owner-}; do wait "$owner" 2>/dev/null || :; done
   rm -r "$scratch"
 }
 trap cleanup EXIT
@@ -80,7 +82,7 @@ test ! -e "$XDG_CONFIG_HOME/agentcron/jobs/pinned.toml"
 "$bin" rm roundtrip --dry-run >/dev/null
 "$bin" show roundtrip --json >/dev/null
 "$bin" rm roundtrip >/dev/null
-"$bin" show roundtrip --json >/dev/null 2>&1 && exit 1 || test $? -eq 2
+"$bin" show roundtrip --json | grep '"status":"orphaned"' >/dev/null
 "$bin" show macro --json --now "$now" | grep '"paused":true' >/dev/null
 "$bin" resume macro >/dev/null
 "$bin" show macro --json | grep '"paused":false' >/dev/null
@@ -170,4 +172,73 @@ test -z "$(git -C "$scratch/repo" branch --list 'agentcron/*')"
 "$bin" show success --json | grep '"state":"succeeded"' >/dev/null
 "$bin" ls --json | grep '"last_state":"queued"' >/dev/null
 
+echo "== daemon, tick and services"
+export AGENTCRON_CONFIG_DIR="$scratch/m3-config" AGENTCRON_DATA_DIR="$scratch/m3-data"
+"$bin" init >/dev/null
+# Render both platforms without ever invoking the host service manager.
+for target in linux darwin; do
+  PATH=/fake/bin "$bin" service install --dry-run --os "$target" --json |
+    sed -e "s|/private$scratch|/SCRATCH|g" -e "s|$scratch|/SCRATCH|g" -e 's|gui/[0-9][0-9]*|gui/UID|g' >"$scratch/service-$target.json"
+  diff "$scratch/service-$target.json" "testdata/golden/service-$target.json"
+done
+# A real daemon fires a near-future one-shot with the fake runner.
+fire="$(date -u -d '+3 seconds' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+3S +%Y-%m-%dT%H:%M:%SZ)"
+"$bin" add due --schedule "at $fire" --runner claude --prompt hello >/dev/null
+"$bin" daemon >"$scratch/daemon-out" 2>"$scratch/daemon-err" &
+daemon_owner=$!
+attempts=0
+until "$bin" doctor --json | grep '"daemon_pid":[1-9]' >/dev/null; do
+  attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
+done
+for action in daemon tick; do
+  "$bin" "$action" >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 4
+  grep "$daemon_owner" "$scratch/err" >/dev/null
+done
+attempts=0
+until "$bin" runs due --json | grep '"state":"succeeded"' >/dev/null; do
+  attempts=$((attempts+1)); test "$attempts" -lt 400; sleep 0.1
+done
+"$bin" show due --json | grep '"status":"done"' >/dev/null
+kill -TERM "$daemon_owner"; wait "$daemon_owner"; daemon_owner=
+# Queued runs execute in a one-pass tick and queued --wait observes the result.
+"$bin" run due --wait >"$scratch/wait-id" &
+queue_owner=$!
+attempts=0
+until "$bin" runs due --state queued --json | grep '"state":"queued"' >/dev/null; do
+  attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
+done
+"$bin" tick >"$scratch/tick-out" 2>"$scratch/tick-err"
+wait "$queue_owner"
+expect_state due succeeded
+# Killing the owner leaves an unknown outcome, including when its child is live.
+"$bin" add restart --schedule @daily --runner claude --prompt hello --timeout 2m >/dev/null
+"$bin" run restart >/dev/null
+FAKE_MODE=sleep FAKE_SLEEP=90s "$bin" daemon >"$scratch/daemon-out" 2>"$scratch/daemon-err" &
+daemon_owner=$!
+wait_running restart
+kill -KILL "$daemon_owner"; wait "$daemon_owner" 2>/dev/null || :; daemon_owner=
+"$bin" tick >"$scratch/tick-out" 2>"$scratch/tick-err"
+expect_state restart unknown
+"$bin" tick >"$scratch/tick-out" 2>"$scratch/tick-err"
+expect_state restart unknown
+test "$("$bin" runs restart --json | grep -o '"id":' | wc -l | tr -d ' ')" = 1
+pkill -f "$scratch/bin/claude" 2>/dev/null || :
+# SIGTERM drains the running process group and records the shutdown reason.
+"$bin" run restart >/dev/null
+FAKE_MODE=sleep FAKE_SLEEP=90s "$bin" daemon >"$scratch/daemon-out" 2>"$scratch/daemon-err" &
+daemon_owner=$!
+wait_running restart
+kill -TERM "$daemon_owner"; wait "$daemon_owner"; daemon_owner=
+expect_state restart cancelled
+"$bin" runs restart --limit 1 --json | grep '"error":"daemon stopped"' >/dev/null
+if pgrep -f "$scratch/bin/claude" >"$scratch/survivors"; then echo "surviving fake process"; exit 1; fi
+# no-wait keeps an inherited lock in a detached worker until the run ends.
+"$bin" run due >/dev/null
+FAKE_MODE=sleep FAKE_SLEEP=1s "$bin" tick --no-wait >"$scratch/no-wait-out" 2>"$scratch/no-wait-err"
+wait_running due
+"$bin" tick >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 4
+attempts=0
+until "$bin" runs due --limit 1 --json | grep '"state":"succeeded"' >/dev/null; do
+  attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
+done
 echo "accept: ok"

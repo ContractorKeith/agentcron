@@ -46,7 +46,7 @@ func NextFires(ctx context.Context, opts Options, c clock.Clock, expr, zone stri
 		return nil, &Error{Usage, fmt.Errorf("timezone requires schedule")}
 	}
 	for _, view := range s.views {
-		if view.Error != "" || view.State.Paused || !view.State.Approved {
+		if view.Job == nil || view.Error != "" || view.State.Paused || !view.State.Approved {
 			continue
 		}
 		for _, at := range jobFires(*view.Job, view.State.AnchorAt, s.now, count) {

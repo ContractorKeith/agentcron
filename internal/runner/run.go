@@ -21,6 +21,7 @@ type Runner struct {
 	Clock                       clock.Clock
 	DataDir, JobsDir, ConfigDir string
 	Grace                       time.Duration
+	Observe                     func(store.Run)
 }
 
 func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool) (store.Run, error) {
@@ -31,6 +32,7 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	persist := context.WithoutCancel(ctx)
 	running := false
 	finish := func(state string, cause error) (store.Run, error) {
+		wasClaimed := r.State == "claimed"
 		r.State = state
 		t := x.Clock.Now().UTC()
 		r.EndedAt = &t
@@ -38,7 +40,7 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 			r.Error = cause.Error()
 		}
 		var err error
-		if !running && (state == "failed" || state == "timed_out") {
+		if !running && (state == "failed" || state == "timed_out" || (state == "skipped" && wasClaimed)) {
 			err = x.DB.FinishClaimedRun(persist, r)
 		} else {
 			err = x.DB.FinishRun(persist, r)
@@ -66,8 +68,10 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	if err != nil {
 		return r, err
 	}
-	if err = x.DB.ClaimRun(ctx, r.ID); err != nil {
-		return r, err
+	if r.State != "claimed" {
+		if err = x.DB.ClaimOwned(ctx, r.ID, x.Clock.Now()); err != nil {
+			return r, err
+		}
 	}
 	setupStarted := x.Clock.Now()
 	p, updated, err := x.setup(ctx, j, r, approved)
@@ -125,6 +129,7 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	if err = cmd.Start(); err != nil {
 		return abort(err)
 	}
+	started = x.Clock.Now().UTC()
 	pid := cmd.Process.Pid
 	if actual, e := ProcessStart(pid); e == nil {
 		r.ProcStart = &actual
@@ -139,6 +144,10 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		_ = terminate(pid, done, x.Clock, x.Grace)
 		r.Kept, _ = cleanup(persist, j, r, p.base)
 		return finish("failed", err)
+	}
+	r.State = "running"
+	if x.Observe != nil {
+		x.Observe(r)
 	}
 	running = true
 	timeout, _ := time.ParseDuration(j.Timeout)

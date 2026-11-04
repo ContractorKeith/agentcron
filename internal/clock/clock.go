@@ -22,12 +22,17 @@ type timer struct {
 }
 
 type Fake struct {
-	mu     sync.Mutex
-	now    time.Time
-	timers []timer
+	mu      sync.Mutex
+	now     time.Time
+	timers  []timer
+	changed *sync.Cond
 }
 
-func NewFake(start time.Time) *Fake { return &Fake{now: start} }
+func NewFake(start time.Time) *Fake {
+	f := &Fake{now: start}
+	f.changed = sync.NewCond(&f.mu)
+	return f
+}
 func (f *Fake) Now() time.Time {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -42,6 +47,7 @@ func (f *Fake) After(d time.Duration) <-chan time.Time {
 		ch <- f.now
 	} else {
 		f.timers = append(f.timers, timer{at, ch})
+		f.changed.Broadcast()
 	}
 	return ch
 }
@@ -63,4 +69,13 @@ func (f *Fake) Advance(d time.Duration) {
 		}
 	}
 	f.timers = pending
+}
+
+// BlockUntil waits until n pending timers have been registered.
+func (f *Fake) BlockUntil(n int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for len(f.timers) < n {
+		f.changed.Wait()
+	}
 }

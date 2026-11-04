@@ -30,7 +30,7 @@ func Parse(expr string) (Schedule, error) {
 		if err != nil {
 			return Schedule{}, fmt.Errorf("schedule: %w", err)
 		}
-		return Schedule{at: at, oneShot: true}, nil
+		return Schedule{at: at.Truncate(time.Second), oneShot: true}, nil
 	}
 	macros := map[string]string{"@hourly": "0 * * * *", "@daily": "0 0 * * *", "@weekly": "0 0 * * 0", "@monthly": "0 0 1 * *"}
 	if expanded, ok := macros[expr]; ok {
@@ -50,9 +50,13 @@ func Parse(expr string) (Schedule, error) {
 }
 
 // WithAnchor fixes interval alignment to the job's persisted first-seen time.
-func (s Schedule) WithAnchor(anchor time.Time) Schedule { s.anchor = anchor; return s }
+func (s Schedule) WithAnchor(anchor time.Time) Schedule {
+	s.anchor = anchor.Truncate(time.Second)
+	return s
+}
 
 func (s Schedule) Next(after time.Time, loc *time.Location) (time.Time, bool) {
+	after = after.Truncate(time.Second)
 	if loc == nil {
 		loc = time.Local
 	}
@@ -67,7 +71,11 @@ func (s Schedule) Next(after time.Time, loc *time.Location) (time.Time, bool) {
 		if after.Before(anchor) {
 			return anchor, true
 		}
-		return anchor.Add((after.Sub(anchor)/s.interval + 1) * s.interval), true
+		next := anchor.Add((after.Sub(anchor)/s.interval + 1) * s.interval)
+		if !next.Truncate(time.Second).After(after) {
+			next = next.Add(s.interval)
+		}
+		return next.Truncate(time.Second), true
 	}
 	for {
 		next := s.cron.Next(after.In(loc))
