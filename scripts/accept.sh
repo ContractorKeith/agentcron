@@ -91,8 +91,9 @@ runner = "claude"
 prompt = "hi"
 timeout = "0s"
 ' >"$XDG_CONFIG_HOME/agentcron/jobs/invalid.toml"
-"$bin" show invalid --json >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 2
-grep timeout "$scratch/err" >/dev/null
+"$bin" show invalid --json >"$scratch/out"
+grep '"status":"invalid"' "$scratch/out" >/dev/null
+grep timeout "$scratch/out" >/dev/null
 "$bin" ls --json | grep '"error":' >/dev/null
 "$bin" rm invalid >/dev/null
 

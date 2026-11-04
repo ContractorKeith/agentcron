@@ -64,6 +64,19 @@ func (s *jobSession) sync(ctx context.Context, persist bool) error {
 	for _, entry := range entries {
 		seen[entry.Name] = true
 		view := JobView{Name: entry.Name, Job: entry.Job, Error: entry.Error, Status: "never"}
+		if entry.Job == nil {
+			state := states[entry.Name]
+			state.Name = entry.Name
+			state.NextFire = nil
+			state.Orphaned = false
+			state.ScheduleKey = "invalid"
+			state.UpdatedAt = s.now
+			if err := s.persist(ctx, state, persist); err != nil {
+				return err
+			}
+			view.Status = "invalid"
+			view.State = &state
+		}
 		if entry.Job != nil {
 			state, exists := states[entry.Name]
 			if !exists {

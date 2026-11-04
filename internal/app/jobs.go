@@ -72,6 +72,7 @@ func (s *jobSession) find(name string) (JobView, error) {
 
 type JobDetail struct {
 	Status string         `json:"status"`
+	Error  string         `json:"error,omitempty"`
 	Job    Job            `json:"job"`
 	State  store.JobState `json:"state"`
 	Next   []time.Time    `json:"next"`
@@ -87,7 +88,7 @@ func ShowJob(ctx context.Context, opts Options, c clock.Clock, name string) (Job
 	view, err := s.find(name)
 	if err != nil {
 		for _, candidate := range s.views {
-			if candidate.Name == name && candidate.Status == "orphaned" {
+			if candidate.Name == name && (candidate.Status == "orphaned" || candidate.Status == "invalid") {
 				view = candidate
 				err = nil
 				break
@@ -102,9 +103,9 @@ func ShowJob(ctx context.Context, opts Options, c clock.Clock, name string) (Job
 		return JobDetail{}, err
 	}
 	if view.Job == nil {
-		return JobDetail{Status: "orphaned", Job: Job{Name: name}, State: *view.State, Next: []time.Time{}, Runs: runs}, nil
+		return JobDetail{Status: view.Status, Error: view.Error, Job: Job{Name: name}, State: *view.State, Next: []time.Time{}, Runs: runs}, nil
 	}
-	return JobDetail{view.Status, *view.Job, *view.State, jobFires(*view.Job, view.State.AnchorAt, s.now, 5), runs}, nil
+	return JobDetail{view.Status, "", *view.Job, *view.State, jobFires(*view.Job, view.State.AnchorAt, s.now, 5), runs}, nil
 }
 
 func (s *jobSession) persist(ctx context.Context, state store.JobState, enabled bool) error {

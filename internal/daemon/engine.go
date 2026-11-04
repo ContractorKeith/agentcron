@@ -122,8 +122,8 @@ func (e *Engine) Loop(ctx context.Context, hup <-chan struct{}) error {
 				}
 			}
 		}
-		if delay < 0 {
-			delay = 0
+		if delay < time.Second {
+			delay = time.Second
 		}
 		select {
 		case <-ctx.Done():
