@@ -22,6 +22,7 @@ type Runner struct {
 	DataDir, JobsDir, ConfigDir string
 	Grace                       time.Duration
 	Observe                     func(store.Run)
+	beforeWait                  func(<-chan error)
 }
 
 func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool) (store.Run, error) {
@@ -167,29 +168,11 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	state := "succeeded"
 	var waitErr error
 	timer := x.Clock.After(timeout - x.Clock.Now().Sub(setupStarted))
-	active := true
-	for active {
-		select {
-		case waitErr = <-done:
-			teardownGroup(pid, x.Clock, x.Grace)
-			active = false
-		case <-ctx.Done():
-			state = "cancelled"
-			waitErr = terminate(pid, done, x.Clock, x.Grace)
-			active = false
-		case <-timer:
-			state = "timed_out"
-			waitErr = terminate(pid, done, x.Clock, x.Grace)
-			active = false
-		case <-x.Clock.After(50 * time.Millisecond):
-			if _, e := os.Stat(filepath.Join(dir, "cancel")); e == nil {
-				state = "cancelled"
-				waitErr = terminate(pid, done, x.Clock, x.Grace)
-				active = false
-			}
-		}
+	if x.beforeWait != nil {
+		x.beforeWait(done)
 	}
-	if _, e := os.Stat(filepath.Join(dir, "cancel")); e == nil && state == "succeeded" {
+	state, waitErr = x.waitProcess(ctx, pid, done, timer, dir)
+	if setupCancelled(dir) && state == "succeeded" {
 		state = "cancelled"
 	}
 	code := cmd.ProcessState.ExitCode()
