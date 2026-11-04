@@ -89,7 +89,7 @@ func Exists(dir, name string) (bool, error) {
 	if err := ValidateName(name); err != nil {
 		return false, err
 	}
-	entries, err := os.ReadDir(dir)
+	entries, err := readJobDir(dir)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
