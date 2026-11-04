@@ -16,8 +16,8 @@ import (
 )
 
 type prepared struct {
-	binary, prompt, base string
-	memory               runMemory
+	binary, prompt, base, configDir string
+	memory                          runMemory
 }
 
 func git(ctx context.Context, repo string, args ...string) (string, error) {
@@ -32,6 +32,9 @@ func git(ctx context.Context, repo string, args ...string) (string, error) {
 }
 func preflight(ctx context.Context, j jobs.Job, approved bool, jobsDir string) (prepared, error) {
 	p := prepared{prompt: j.Prompt}
+	if jobsDir != "" {
+		p.configDir = filepath.Dir(jobsDir)
+	}
 	if !approved {
 		return p, fmt.Errorf("job is unapproved")
 	}
@@ -79,6 +82,9 @@ func preflight(ctx context.Context, j jobs.Job, approved bool, jobsDir string) (
 }
 func createWorktree(ctx context.Context, data string, j jobs.Job, r store.Run, p prepared) (string, error) {
 	path := filepath.Join(data, "worktrees", j.Name, r.ID)
+	if err := configOutside(path, p.configDir); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return "", err
 	}
@@ -150,4 +156,52 @@ func rollbackWorktree(ctx context.Context, j jobs.Job, r store.Run) (bool, error
 		return false, nil
 	}
 	return true, errors.Join(removeErr, branchErr, listErr)
+}
+
+// Resolve existing ancestors before checking containment of a future worktree.
+func configOutside(worktree, configDir string) error {
+	if configDir == "" {
+		return nil
+	}
+	resolve := func(path string) (string, error) {
+		path, err := filepath.Abs(path)
+		if err != nil {
+			return "", err
+		}
+		var suffix []string
+		for {
+			real, e := filepath.EvalSymlinks(path)
+			if e == nil {
+				for i := len(suffix) - 1; i >= 0; i-- {
+					real = filepath.Join(real, suffix[i])
+				}
+				return real, nil
+			}
+			if !os.IsNotExist(e) {
+				return "", e
+			}
+			parent := filepath.Dir(path)
+			if parent == path {
+				return "", e
+			}
+			suffix = append(suffix, filepath.Base(path))
+			path = parent
+		}
+	}
+	root, err := resolve(worktree)
+	if err != nil {
+		return err
+	}
+	target, err := resolve(configDir)
+	if err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return err
+	}
+	if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("run worktree would contain the config directory; move config outside worktrees")
+	}
+	return nil
 }

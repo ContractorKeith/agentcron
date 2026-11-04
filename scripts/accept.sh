@@ -342,3 +342,47 @@ if grep '"argv":\["'"$scratch/bin/claude"'"' "$scratch/memory-budget-record"; th
 unset FAKE_RECORD
 
 echo "accept: ok"
+
+echo "== MCP and approval"
+export AGENTCRON_CONFIG_DIR="$scratch/m5-config" AGENTCRON_DATA_DIR="$scratch/m5-data"
+"$bin" init >/dev/null
+"$bin" add readable --schedule @daily --runner command --command cat --prompt hello >/dev/null
+read_id="$("$bin" run readable --now)"
+MCP_INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"accept","version":"1"}}}'
+MCP_READY='{"jsonrpc":"2.0","method":"notifications/initialized"}'
+mcp_exchange() {
+  # EOF cancels SDK requests; leave transport open while responses are written.
+  (printf '%s\n' "$MCP_INIT" "$MCP_READY" "$1"; sleep 2) | "$bin" mcp ${2-}
+}
+MCP_LIST='{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+for write_flag in '' --allow-write; do
+  mcp_exchange "$MCP_LIST" "$write_flag" >"$scratch/mcp-list"
+  tool_count="$(grep '"id":2,' "$scratch/mcp-list" | grep -o '"inputSchema"' | wc -l | tr -d ' ')"
+  if test -z "$write_flag"; then test "$tool_count" = 5; else test "$tool_count" = 9; fi
+done
+read_calls='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_jobs","arguments":{}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_job","arguments":{"name":"readable"}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_runs","arguments":{"job":"readable","limit":1}}}
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"next_fires","arguments":{"count":1}}}'
+read_calls="$read_calls
+{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"get_run_output\",\"arguments\":{\"id\":\"$read_id\",\"stream\":\"stdout\"}}}"
+mcp_exchange "$read_calls" >"$scratch/mcp-reads"
+for response in 2 3 4 5 6; do grep "\"id\":$response," "$scratch/mcp-reads" | grep '"structuredContent"' >/dev/null; done
+if grep '"isError":true' "$scratch/mcp-reads"; then exit 1; fi
+create_call='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"create_job","arguments":{"name":"agent","schedule":"every 1m","runner":"command","command":["cat"],"prompt":"hello"}}}'
+mcp_exchange "$create_call" --allow-write >"$scratch/mcp-create"
+grep '"status":"unapproved"' "$scratch/mcp-create" >/dev/null
+test -f "$AGENTCRON_CONFIG_DIR/jobs/agent.toml"
+grep 'created_by = "mcp"' "$AGENTCRON_CONFIG_DIR/jobs/agent.toml" >/dev/null
+"$bin" ls | grep 'unapproved' >/dev/null
+"$bin" tick >/dev/null 2>"$scratch/mcp-tick-err"
+test "$("$bin" runs agent --json)" = '[]'
+"$bin" approve absent >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 2
+"$bin" approve agent >/dev/null
+"$bin" approve agent >/dev/null
+"$bin" run agent --now >/dev/null
+expect_state agent succeeded
+AGENTCRON_RUN_ID=x mcp_exchange "$create_call" --allow-write >"$scratch/mcp-guard"
+grep '"isError":true' "$scratch/mcp-guard" >/dev/null
+grep allow_agent_scheduling "$scratch/mcp-guard" >/dev/null
+echo "accept: ok"
