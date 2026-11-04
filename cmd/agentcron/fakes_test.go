@@ -14,6 +14,11 @@ import (
 
 func TestFakesRecordOK(t *testing.T) {
 	scratch := isolate(t)
+	// macOS /var and /private/var are aliases; exercise an alias on every platform.
+	workdir := filepath.Join(scratch, "cwd-link")
+	if err := os.Symlink(scratch, workdir); err != nil {
+		t.Fatal(err)
+	}
 	binDir := filepath.Join(scratch, "bin")
 	if err := os.MkdirAll(binDir, 0o700); err != nil {
 		t.Fatal(err)
@@ -39,7 +44,7 @@ func TestFakesRecordOK(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				cmd := testCommand(ctx, name, "--fixture", "two words")
-				cmd.Dir = scratch
+				cmd.Dir = workdir
 				cmd.Stdin = strings.NewReader("test prompt\n")
 				out, err := cmd.CombinedOutput()
 				cancel()
@@ -66,11 +71,15 @@ func TestFakesRecordOK(t *testing.T) {
 					t.Fatal(err)
 				}
 				wantArgv := []string{name, "--fixture", "two words"}
-				cwd, err := filepath.EvalSymlinks(scratch)
+				cwd, err := os.Stat(got.Cwd)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if !reflect.DeepEqual(got.Argv, wantArgv) || got.Cwd != cwd || got.Stdin != "test prompt\n" {
+				wantCwd, err := os.Stat(scratch)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(got.Argv, wantArgv) || !os.SameFile(cwd, wantCwd) || got.Stdin != "test prompt\n" {
 					t.Fatalf("record: %+v", got)
 				}
 				for _, key := range []string{"AGENTCRON_JOB", "AGENTCRON_FUTURE_FIELD", "MDKB_ROOT"} {
