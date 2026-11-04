@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
+	"github.com/ContractorKeith/agentcron/internal/daemon"
 	"github.com/ContractorKeith/agentcron/internal/jobs"
 	"github.com/ContractorKeith/agentcron/internal/runner"
 	"github.com/ContractorKeith/agentcron/internal/store"
@@ -48,6 +49,9 @@ func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, 
 	}
 	if err = s.db.CreateRun(ctx, r); err != nil {
 		return r, err
+	}
+	if !now {
+		daemon.Wake(s.config.DataDir)
 	}
 	if now {
 		r, err = (runner.Runner{DB: s.db, Clock: c, DataDir: s.config.DataDir, JobsDir: s.config.JobsDir(), ConfigDir: s.config.ConfigDir}).Run(ctx, j, r, approved)

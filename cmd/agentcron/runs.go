@@ -41,7 +41,11 @@ func runCommands(root *cobra.Command, opts *app.Options, output outputFunc) {
 	run := &cobra.Command{Use: "run <job>", Short: "Enqueue or run a job inline", Args: one, RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := app.RunJob(cmd.Context(), *opts, current, args[0], now, wait)
 		if r.ID != "" {
-			if e := output(cmd, r, "%s\n", r.ID); e != nil {
+			message := r.ID + "\n"
+			if !now && !wait && err == nil {
+				message += app.QueueMessage(*opts) + "\n"
+			}
+			if e := output(cmd, r, "%s", message); e != nil {
 				return e
 			}
 		}

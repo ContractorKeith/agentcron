@@ -7,6 +7,7 @@ import (
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/config"
+	"github.com/ContractorKeith/agentcron/internal/daemon"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
@@ -88,5 +89,9 @@ func EnqueueMCPRun(ctx context.Context, opts Options, c clock.Clock, name string
 	if err != nil {
 		return r, err
 	}
-	return r, s.db.CreateRun(ctx, r)
+	if err := s.db.CreateRun(ctx, r); err != nil {
+		return r, err
+	}
+	daemon.Wake(s.config.DataDir)
+	return r, nil
 }
