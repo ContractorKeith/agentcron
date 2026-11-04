@@ -24,6 +24,9 @@ func (e *Engine) Enqueue(ctx context.Context, defs map[string]jobs.Job, states m
 		s = s.WithAnchor(st.AnchorAt)
 
 		if !st.Approved || st.Paused || st.Orphaned {
+			if st.NextFire.After(now) {
+				continue
+			}
 			st.NextFire = nil
 			if next, ok := s.Next(now, loc); ok {
 				st.NextFire = &next
