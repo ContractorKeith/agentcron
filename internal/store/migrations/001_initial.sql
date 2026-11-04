@@ -26,3 +26,5 @@ CREATE TABLE runs (
 );
 CREATE UNIQUE INDEX runs_fire ON runs (job, scheduled_for, trigger)
  WHERE trigger IN ('schedule', 'catchup');
+CREATE INDEX runs_state ON runs (state);
+CREATE INDEX runs_job_started_at ON runs (job, started_at);

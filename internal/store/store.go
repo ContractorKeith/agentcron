@@ -31,6 +31,7 @@ func open(ctx context.Context, path string, create bool) (*Store, error) {
 	uri := url.URL{Scheme: "file", Path: absolute}
 	q := url.Values{}
 	q.Add("_pragma", "busy_timeout(5000)")
+	q.Add("_pragma", "journal_mode(WAL)")
 	q.Set("_txlock", "immediate")
 	if !create {
 		q.Set("mode", "ro")
@@ -42,10 +43,7 @@ func open(ctx context.Context, path string, create bool) (*Store, error) {
 	}
 	s := &Store{db: db}
 	if err = db.PingContext(ctx); err == nil && create {
-		_, err = db.ExecContext(ctx, "PRAGMA journal_mode=WAL")
-		if err == nil {
-			err = s.migrate(ctx)
-		}
+		err = s.migrate(ctx)
 	}
 	if err != nil {
 		_ = db.Close()
