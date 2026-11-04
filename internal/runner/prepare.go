@@ -3,11 +3,13 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ContractorKeith/agentcron/internal/jobs"
 	"github.com/ContractorKeith/agentcron/internal/store"
@@ -16,7 +18,10 @@ import (
 type prepared struct{ binary, prompt, base string }
 
 func git(ctx context.Context, repo string, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git %v: %w: %s", args, err, out)
 	}
@@ -118,4 +123,28 @@ func RemoveWorktree(ctx context.Context, repo string, r store.Run) error {
 	}
 	_, err = git(ctx, repo, "branch", "-D", "agentcron/"+r.Job+"/"+r.ID)
 	return err
+}
+
+// rollbackWorktree handles partial add failures, including post-checkout hooks.
+func rollbackWorktree(ctx context.Context, j jobs.Job, r store.Run) (bool, error) {
+	if r.Worktree == "" {
+		return false, nil
+	}
+	if j.Repo == "" {
+		err := os.Remove(r.Worktree)
+		if os.IsNotExist(err) {
+			err = nil
+		}
+		return err != nil, err
+	}
+	_, removeErr := git(ctx, j.Repo, "worktree", "remove", "--force", r.Worktree)
+	branch := "agentcron/" + r.Job + "/" + r.ID
+	_, branchErr := git(ctx, j.Repo, "branch", "-D", branch)
+	trees, listErr := git(ctx, j.Repo, "worktree", "list", "--porcelain")
+	_, pathErr := os.Stat(r.Worktree)
+	_, refErr := git(ctx, j.Repo, "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	if os.IsNotExist(pathErr) && refErr != nil && listErr == nil && !strings.Contains(trees, "worktree "+r.Worktree+"\n") {
+		return false, nil
+	}
+	return true, errors.Join(removeErr, branchErr, listErr)
 }

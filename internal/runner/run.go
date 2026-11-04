@@ -69,13 +69,15 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	if err = x.DB.ClaimRun(ctx, r.ID); err != nil {
 		return r, err
 	}
-	p, err := preflight(ctx, j, approved, x.JobsDir)
+	setupStarted := x.Clock.Now()
+	p, updated, err := x.setup(ctx, j, r, approved)
+	r = updated
 	if err != nil {
-		return finish("blocked_config", err)
-	}
-	r.Worktree, err = createWorktree(ctx, x.DataDir, j, r, p)
-	if err != nil {
-		return finish("blocked_config", err)
+		state := "blocked_config"
+		if errors.Is(err, errSetupTimeout) {
+			state = "timed_out"
+		}
+		return finish(state, err)
 	}
 	abort := func(cause error) (store.Run, error) {
 		r.Kept, err = cleanup(persist, j, r, p.base)
@@ -142,7 +144,7 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	timeout, _ := time.ParseDuration(j.Timeout)
 	state := "succeeded"
 	var waitErr error
-	timer := x.Clock.After(timeout)
+	timer := x.Clock.After(timeout - x.Clock.Now().Sub(setupStarted))
 	active := true
 	for active {
 		select {
