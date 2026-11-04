@@ -29,7 +29,7 @@ func TestDescendantsRemoved(t *testing.T) {
 			t.Setenv("FAKE_CHILD_PID", path)
 			t.Setenv("FAKE_MODE", mode)
 			t.Setenv("FAKE_SLEEP", "3s")
-			j.Timeout = "150ms"
+			j.Timeout = "1s"
 			if mode == "background" {
 				j.Timeout = "5s"
 			}

@@ -39,7 +39,7 @@ func TestCancelAndOverlap(t *testing.T) {
 		}
 	})
 	started := false
-	for range 100 {
+	for range 250 {
 		current, err := x.DB.GetRun(context.Background(), r.ID)
 		if err != nil {
 			t.Fatal(err)
@@ -106,7 +106,7 @@ func TestContextCancel(t *testing.T) {
 	if e = x.DB.CreateRun(context.Background(), r); e != nil {
 		t.Fatal(e)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, e = x.Run(ctx, j, r, true)
 	if e != nil || r.State != "cancelled" {

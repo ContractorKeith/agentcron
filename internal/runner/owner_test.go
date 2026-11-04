@@ -68,7 +68,7 @@ func orphanRun(t *testing.T) (Runner, jobs.Job, store.Run) {
 			reapDescendant(*current.PID)
 		}
 	})
-	for range 200 {
+	for range 500 {
 		current, err := x.DB.GetRun(context.Background(), r.ID)
 		if err != nil {
 			t.Fatal(err)

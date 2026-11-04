@@ -20,7 +20,7 @@ func TestCLIRecursion(t *testing.T) {
 			t.Errorf("%v: %v", args, err)
 		}
 	}
-	cfg := filepath.Join(os.Getenv("AGENTCRON_CONFIG_DIR"), "config.toml")
+	cfg := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "agentcron", "config.toml")
 	if err := os.WriteFile(cfg, []byte("allow_agent_scheduling = true\n"), 0600); err != nil {
 		t.Fatal(err)
 	}

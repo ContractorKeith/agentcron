@@ -26,15 +26,18 @@ func setup(t *testing.T) (Runner, jobs.Job) {
 		t.Fatal(e)
 	}
 	bin := filepath.Join(dir, "bin")
-	if e := os.Mkdir(bin, 0700); e != nil {
-		t.Fatal(e)
+	if err := os.Mkdir(bin, 0700); err != nil {
+		t.Fatal(err)
 	}
 	for _, name := range []string{"claude", "codex", "mdkb"} {
-		cmd := exec.Command("go", "build", "-o", filepath.Join(bin, name), "../../testdata/fakes/"+name)
-		// HOME is isolated; retain the build cache supplied by the test harness.
-		cmd.Env = append(os.Environ(), "GOCACHE="+testCache)
-		if out, e := cmd.CombinedOutput(); e != nil {
-			t.Fatalf("build: %s %v", out, e)
+		binary := filepath.Join(bin, name)
+		if err := os.Link(filepath.Join(fakeBin, name), binary); err != nil {
+			t.Fatal(err)
+		}
+		warm := exec.Command(binary, "version")
+		warm.Env = append(os.Environ(), "FAKE_MODE=ok", "FAKE_RECORD=", "FAKE_STDIN=", "FAKE_SLEEP=")
+		if out, err := warm.CombinedOutput(); err != nil {
+			t.Fatalf("warm: %s %v", out, err)
 		}
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -62,13 +65,6 @@ func setup(t *testing.T) (Runner, jobs.Job) {
 	return Runner{DB: db, Clock: clock.Real{}, DataDir: dir, JobsDir: dir, Grace: 200 * time.Millisecond}, j
 }
 
-var testCache = os.Getenv("GOCACHE")
-
-func init() {
-	if testCache == "" {
-		testCache = filepath.Join(os.Getenv("HOME"), ".cache", "go-build")
-	}
-}
 func executeRun(t *testing.T, x Runner, j jobs.Job, approved bool) store.Run {
 	t.Helper()
 	r, e := store.NewRun(j.Name, "manual", x.Clock.Now())
