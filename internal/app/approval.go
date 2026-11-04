@@ -7,11 +7,23 @@ import (
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/config"
+	"github.com/ContractorKeith/agentcron/internal/daemon"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
+// This user-facing policy message is shared verbatim by CLI and MCP.
+type schedulingRefusal struct{}
+
+func (schedulingRefusal) Error() string {
+	return "Scheduling from inside a run requires allow_agent_scheduling = true in config.toml"
+}
+
 // CheckMCPWrite prevents a scheduled agent from recursively changing schedules.
 func CheckMCPWrite(opts Options) error {
+	return checkScheduling(opts)
+}
+
+func checkScheduling(opts Options) error {
 	if err := refusePreview(opts); err != nil {
 		return err
 	}
@@ -20,7 +32,7 @@ func CheckMCPWrite(opts Options) error {
 		return err
 	}
 	if os.Getenv("AGENTCRON_RUN_ID") != "" && !cfg.AllowAgentScheduling {
-		return &Error{Refused, fmt.Errorf("MCP writes inside a run require allow_agent_scheduling = true in config.toml")}
+		return &Error{Refused, schedulingRefusal{}}
 	}
 	return nil
 }
@@ -37,6 +49,9 @@ func CreateMCPJob(ctx context.Context, opts Options, c clock.Clock, j Job) (JobD
 
 // ApproveJob enables firing and resumes an agent-created job; repeated approval is harmless.
 func ApproveJob(ctx context.Context, opts Options, c clock.Clock, name string) error {
+	if os.Getenv("AGENTCRON_RUN_ID") != "" {
+		return &Error{Refused, fmt.Errorf("approval is human-only; cannot approve inside a run")}
+	}
 	if err := refusePreview(opts); err != nil {
 		return err
 	}
@@ -53,6 +68,7 @@ func ApproveJob(ctx context.Context, opts Options, c clock.Clock, name string) e
 	if st.Approved {
 		return nil
 	}
+	resetNextFire(&st, *v.Job, s.now)
 	st.Approved, st.Paused, st.UpdatedAt = true, false, s.now
 	return s.db.PutJobState(ctx, st)
 }
@@ -80,5 +96,9 @@ func EnqueueMCPRun(ctx context.Context, opts Options, c clock.Clock, name string
 	if err != nil {
 		return r, err
 	}
-	return r, s.db.CreateRun(ctx, r)
+	if err := s.db.CreateRun(ctx, r); err != nil {
+		return r, err
+	}
+	daemon.Wake(s.config.DataDir)
+	return r, nil
 }

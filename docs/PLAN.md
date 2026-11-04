@@ -1,6 +1,6 @@
 # agentcron — Build Plan
 
-Status: planned, no code yet (2026-11-04). Sources studied: Hermes Agent cron, Agenvoy
+Status: v0.1.0 release candidate; skeptic-review pending
 scheduler, OpenClaw cron, omarchy-agentcron, reeschan/agentcron; process model mdkb.
 
 ## 1. Goal
@@ -92,7 +92,7 @@ Rules:
   `UPDATE runs SET state='claimed' WHERE id=? AND state='queued'` and checks rows affected.
 - Child processes run in their own process group; timeout and cancel signal the group
   (SIGTERM, 10 s grace, SIGKILL).
-- v1 contains runs by process group; a descendant that calls setsid escapes teardown (OS sandboxing is Later).
+- Descendants that leave the run's process group (`setsid`, `setpgid`, or shell job control) are not torn down; OS sandboxing is Later. On Linux, stopping the service still kills them through the unit's cgroup.
 
 ### Dependencies and why
 
@@ -166,7 +166,7 @@ Environment given to every run: `AGENTCRON_JOB`, `AGENTCRON_RUN_ID`,
 ```
 agentcron init                                  create config, jobs and data dirs (idempotent)
 agentcron add <name> --schedule S --runner R [--prompt T | --prompt-file F] [--repo P] [--base B]
-          [--timezone Z] [--arg A]... [--command C]... [--timeout D] [--expect RE] [--memory | --no-memory] [--dry-run]
+          [--timezone Z] [--arg A]... [--command C]... [--timeout D] [--catchup one|none] [--expect RE] [--memory | --no-memory] [--dry-run]
 agentcron ls [--json]                           jobs with schedule, next fire, last state
 agentcron show <name> [--json]                  job, state, next 5 fires, last 5 runs
 agentcron rm <name> [--dry-run]                 removes the file; runs stay in the ledger
@@ -177,7 +177,7 @@ agentcron run <name> [--now] [--wait]           enqueue (daemon runs it) or run 
 agentcron runs [<name>] [--state S] [--limit N] [--json]
 agentcron logs <run-id> [--stderr] [--follow]
 agentcron cancel <run-id>
-agentcron worktrees [--json] | prune [--dry-run]
+agentcron worktrees [--json] | prune [--dry-run] [--force]
 agentcron memory <name>                         print the job's memory note via mdkb
 agentcron daemon                                foreground scheduler
 agentcron tick                                  one scheduling pass, then exit

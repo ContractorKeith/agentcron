@@ -14,7 +14,7 @@ var version = "dev"
 
 func main() {
 	if err := execute(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "agentcron:", err)
+		fmt.Fprintln(os.Stderr, "agentcron:", app.ErrorText(err))
 		os.Exit(int(app.Code(err)))
 	}
 }

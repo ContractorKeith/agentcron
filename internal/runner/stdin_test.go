@@ -2,6 +2,7 @@ package runner
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,9 +13,18 @@ import (
 func TestLargePromptDoesNotBlockWait(t *testing.T) {
 	x, j := setup(t)
 	j.Runner = "command"
-	j.Command = []string{"claude"}
+	// Model macOS's first-exec latency before the fake starts.
+	delayed := filepath.Join(x.DataDir, "cold-claude")
+	binary, err := exec.LookPath("claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(delayed, []byte("#!/bin/sh\nsleep 0.2\nexec '"+binary+"'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	j.Command = []string{delayed}
 	j.Prompt = strings.Repeat("p", 1024*1024)
-	j.Timeout = "150ms"
+	j.Timeout = "1s"
 	path := filepath.Join(x.DataDir, "stdin-child")
 	t.Setenv("FAKE_CHILD_PID", path)
 	t.Setenv("FAKE_MODE", "background")

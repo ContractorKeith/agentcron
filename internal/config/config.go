@@ -54,8 +54,12 @@ func Load(opts Options) (Config, error) {
 		return Config{}, err
 	}
 	defaultData := c.DataDir
-	if _, err := toml.DecodeFile(c.File(), &c); err != nil && !os.IsNotExist(err) {
+	meta, decodeErr := toml.DecodeFile(c.File(), &c)
+	if err := decodeErr; err != nil && !os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("read config: %w", err)
+	}
+	if keys := meta.Undecoded(); len(keys) > 0 {
+		return Config{}, &ValidationError{fmt.Errorf("unknown config key %q", keys[0].String())}
 	}
 	c.DataDir, err = absolutePath(first(opts.DataDir, os.Getenv("AGENTCRON_DATA_DIR"), c.DataDir, defaultData), home)
 	if err != nil {

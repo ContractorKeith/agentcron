@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"sync"
 	"time"
@@ -32,13 +31,6 @@ type Engine struct {
 	wake                  chan struct{}
 }
 
-func (e *Engine) log(v any) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.Log != nil {
-		_ = json.NewEncoder(e.Log).Encode(v)
-	}
-}
 func (e *Engine) Wait() { e.wg.Wait() }
 func (e *Engine) Tick(ctx context.Context) error {
 	if err := e.DB.CheckIdentity(); err != nil {

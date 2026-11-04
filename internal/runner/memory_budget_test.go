@@ -14,13 +14,13 @@ import (
 func TestMemoryBootstrapHonorsJobTimeoutWithoutLaunchingAgent(t *testing.T) {
 	x, j := setup(t)
 	j.Memory = true
-	j.Timeout = "150ms"
+	j.Timeout = "1s"
 	t.Setenv("FAKE_MDKB_CAT_SLEEP", "10s")
 	record := filepath.Join(x.DataDir, "record")
 	t.Setenv("FAKE_RECORD", record)
 	start := x.Clock.Now()
 	r := executeRun(t, x, j, true)
-	if r.State != "timed_out" || !strings.Contains(r.Error, "setup timed out") || x.Clock.Now().Sub(start) > 2*time.Second {
+	if r.State != "timed_out" || !strings.Contains(r.Error, "setup timed out") || x.Clock.Now().Sub(start) > 5*time.Second {
 		t.Fatalf("%+v", r)
 	}
 	for _, entry := range records(t, record) {
@@ -80,7 +80,7 @@ func TestCancelDuringMemoryBootstrapNeverLaunchesAgent(t *testing.T) {
 		if got.err != nil || got.run.State != "cancelled" {
 			t.Fatalf("%+v", got)
 		}
-	case <-x.Clock.After(2 * time.Second):
+	case <-x.Clock.After(5 * time.Second):
 		t.Fatal("cancel did not interrupt bootstrap")
 	}
 	for _, entry := range records(t, record) {

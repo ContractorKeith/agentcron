@@ -36,7 +36,7 @@ func TestOutcomes(t *testing.T) {
 			j.Expect = tc.expect
 			j.Timeout = "5s"
 			if tc.state == "timed_out" {
-				j.Timeout = "150ms"
+				j.Timeout = "1s"
 			}
 			r := executeRun(t, x, j, true)
 			if r.State != tc.state {

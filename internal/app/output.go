@@ -28,10 +28,9 @@ func Logs(ctx context.Context, opts Options, c clock.Clock, id string, stderr, f
 	if stderr {
 		name = "stderr.log"
 	}
-	path := filepath.Join(s.config.DataDir, "runs", r.ID, name)
 	var offset int64
 	for {
-		f, e := os.Open(path)
+		f, e := openRegularLog(filepath.Join(s.config.DataDir, "runs"), r.ID, name)
 		if e == nil {
 			if _, e = f.Seek(offset, io.SeekStart); e == nil {
 				var n int64
@@ -80,7 +79,7 @@ func Worktrees(ctx context.Context, opts Options, c clock.Clock) ([]Run, error) 
 	}
 	return result, nil
 }
-func Prune(ctx context.Context, opts Options, c clock.Clock, dry bool) ([]Run, error) {
+func Prune(ctx context.Context, opts Options, c clock.Clock, dry, force bool) ([]Run, error) {
 	if opts.ReadOnly {
 		return nil, &Error{Usage, fmt.Errorf("now preview is read-only")}
 	}
@@ -104,6 +103,25 @@ func Prune(ctx context.Context, opts Options, c clock.Clock, dry bool) ([]Run, e
 		if r.Worktree != expected {
 			warnings = append(warnings, fmt.Errorf("unexpected worktree path %q", r.Worktree))
 			continue
+		}
+
+		if dry || !force {
+			changes, e := runner.WorktreeChanges(ctx, r.Worktree)
+			if e != nil {
+				warnings = append(warnings, e)
+				continue
+			}
+			if changes != "" && !force {
+				r.Error = "kept; --force would destroy: " + changes
+				result = append(result, r)
+				continue
+			}
+			if dry {
+				r.Error = "would remove"
+				if changes != "" {
+					r.Error += "; --force destroys: " + changes
+				}
+			}
 		}
 		result = append(result, r)
 		if dry {

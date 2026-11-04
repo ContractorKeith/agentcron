@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,10 +15,23 @@ import (
 type fakeCommander struct {
 	calls  [][]string
 	output string
+	loaded bool
 }
 
 func (f *fakeCommander) Run(_ context.Context, name string, args ...string) (string, error) {
 	f.calls = append(f.calls, append([]string{name}, args...))
+	if name == "launchctl" {
+		switch args[0] {
+		case "bootout":
+			f.loaded = false
+		case "bootstrap":
+			f.loaded = true
+		case "print":
+			if !f.loaded {
+				return "Could not find service", errors.New("not found")
+			}
+		}
+	}
 	return f.output, nil
 }
 func TestServiceLifecycle(t *testing.T) {

@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -33,8 +35,7 @@ func TestAbsolutePaths(t *testing.T) {
 			if err := os.MkdirAll(source, 0o700); err != nil {
 				t.Fatal(err)
 			}
-			// config_dir must never redirect the directory containing the settings and jobs.
-			contents := "config_dir = 'ignored'\n"
+			contents := ""
 			if tc.fileData != "" {
 				contents += "data_dir = '" + tc.fileData + "'\n"
 			}
@@ -73,11 +74,9 @@ func TestFileCannotRedirectConfigDirectory(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "config.toml"), []byte("config_dir = 'split-state'\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got, err := Load(Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.ConfigDir != source {
-		t.Fatalf("file redirected config directory to %q", got.ConfigDir)
+	_, err := Load(Options{})
+	var invalid *ValidationError
+	if !errors.As(err, &invalid) || !strings.Contains(err.Error(), "config_dir") {
+		t.Fatalf("unsupported config_dir accepted: %v", err)
 	}
 }

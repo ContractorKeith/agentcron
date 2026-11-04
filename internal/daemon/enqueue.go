@@ -13,7 +13,7 @@ func (e *Engine) Enqueue(ctx context.Context, defs map[string]jobs.Job, states m
 	now := e.Clock.Now().UTC().Truncate(time.Second)
 	for name, j := range defs {
 		st := states[name]
-		if !st.Approved || st.Paused || st.Orphaned || st.NextFire == nil {
+		if st.NextFire == nil {
 			continue
 		}
 		loc := time.Local
@@ -22,6 +22,21 @@ func (e *Engine) Enqueue(ctx context.Context, defs map[string]jobs.Job, states m
 		}
 		s, _ := schedule.Parse(j.Schedule)
 		s = s.WithAnchor(st.AnchorAt)
+
+		if !st.Approved || st.Paused || st.Orphaned {
+			if st.NextFire.After(now) {
+				continue
+			}
+			st.NextFire = nil
+			if next, ok := s.Next(now, loc); ok {
+				st.NextFire = &next
+			}
+			st.UpdatedAt = now
+			if err := e.DB.AdvanceCursor(ctx, st); err != nil {
+				return err
+			}
+			continue
+		}
 		fire := *st.NextFire
 		var missed *time.Time
 		var onTime []time.Time

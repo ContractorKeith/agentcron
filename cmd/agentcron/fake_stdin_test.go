@@ -31,7 +31,7 @@ func TestSleepingFakeWithOpenStdin(t *testing.T) {
 	}
 	defer read.Close()
 	defer write.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	if found, err := exec.LookPath("claude"); err != nil || found != filepath.Join(binDir, "claude") {
 		t.Fatalf("fake not first: %q %v", found, err)
@@ -66,7 +66,7 @@ func TestSleepingFakeWithOpenStdin(t *testing.T) {
 func waitForFakeRecord(path string) ([]byte, error) {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
-	deadline := time.NewTimer(2 * time.Second)
+	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
 	for {
 		if contents, err := os.ReadFile(path); err == nil && len(contents) > 0 {

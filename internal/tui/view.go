@@ -23,6 +23,9 @@ func (m model) render() string {
 		lines = append(lines, "daemon not running")
 	}
 	switch {
+	case m.approveName != "":
+		lines = append(lines, "Review job "+m.approveName)
+		lines = append(lines, strings.Split(m.approveSummary, " | ")...)
 	case m.help:
 		lines = append(lines, "j/k ↑/↓ move; tab switch jobs/runs", "enter runs/logs; esc back", "r enqueue; p pause/resume; a approve", "c cancel running run (y/n)", "/ filter jobs; ? help; q/ctrl-c quit", "Logs: tab/s toggle stdout/stderr; live tail (64 KiB)")
 	case m.logID != "":
@@ -71,6 +74,9 @@ func (m model) render() string {
 	if m.filtering || m.filter != "" {
 		footer = "Filter: " + m.filter + "  " + footer
 	}
+	if m.approveName != "" {
+		footer = "Approve " + m.approveName + "? y/n  " + m.approveSummary
+	}
 	if m.confirm != "" {
 		footer = "Cancel " + m.confirm + "? y/n"
 	}
@@ -91,6 +97,9 @@ func (m model) render() string {
 	}
 	if m.logID != "" {
 		keys = "tab/s stdout/stderr  esc back  ? help  q quit"
+	}
+	if m.approveName != "" {
+		keys = "y approve job  n/esc back"
 	}
 	if m.confirm != "" {
 		keys = "y cancel run  n/esc back"

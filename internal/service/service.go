@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/ContractorKeith/agentcron/internal/clock"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,12 +28,16 @@ func (Exec) Run(ctx context.Context, name string, args ...string) (string, error
 
 type Options struct {
 	OS, Home, Binary, Path, ConfigDir, DataDir string
+	MDKBRoot                                   string
 	UID                                        int
+	Clock                                      clock.Clock
 }
 type Definition struct {
-	Path     string     `json:"path"`
-	Unit     string     `json:"unit"`
-	Commands [][]string `json:"commands"`
+	Path        string            `json:"path"`
+	Unit        string            `json:"unit"`
+	Commands    [][]string        `json:"commands"`
+	Environment map[string]string `json:"environment"`
+	Warnings    []string          `json:"warnings,omitempty"`
 }
 type State struct {
 	Installed bool `json:"installed"`
@@ -45,7 +50,7 @@ func Current(binary, path, config, data string) (Options, error) {
 		return Options{}, err
 	}
 	binary, err = filepath.Abs(binary)
-	return Options{runtime.GOOS, home, binary, path, config, data, os.Getuid()}, err
+	return Options{OS: runtime.GOOS, Home: home, Binary: binary, Path: path, ConfigDir: config, DataDir: data, UID: os.Getuid(), MDKBRoot: os.Getenv("MDKB_ROOT")}, err
 }
 func (o Options) domain() string { return "gui/" + strconv.Itoa(o.UID) }
 func (o Options) file() string {
@@ -67,12 +72,12 @@ func (o Options) args() []string {
 func (o Options) Commands(action string) [][]string {
 	if o.OS == "darwin" {
 		if action == "install" {
-			return [][]string{{"launchctl", "bootstrap", o.domain(), o.file()}}
+			return [][]string{{"launchctl", "bootout", o.domain() + "/com.contractorkeith.agentcron"}, {"launchctl", "print", o.domain() + "/com.contractorkeith.agentcron"}, {"launchctl", "bootstrap", o.domain(), o.file()}}
 		}
 		return [][]string{{"launchctl", "bootout", o.domain() + "/com.contractorkeith.agentcron"}}
 	}
 	if action == "install" {
-		return [][]string{{"systemctl", "--user", "daemon-reload"}, {"systemctl", "--user", "enable", "--now", "agentcron.service"}}
+		return [][]string{{"systemctl", "--user", "daemon-reload"}, {"systemctl", "--user", "enable", "agentcron.service"}, {"systemctl", "--user", "restart", "agentcron.service"}}
 	}
 	return [][]string{{"systemctl", "--user", "disable", "--now", "agentcron.service"}, {"systemctl", "--user", "daemon-reload"}}
 }
@@ -84,6 +89,9 @@ func Apply(ctx context.Context, o Options, action string, dry bool, cmd Commande
 	d.Commands = o.Commands(action)
 	if dry {
 		return d, nil
+	}
+	if action == "install" && o.OS == "darwin" {
+		return installLaunchd(ctx, o, d, cmd)
 	}
 	if action == "install" {
 		if err = os.MkdirAll(filepath.Dir(d.Path), 0700); err != nil {
@@ -103,8 +111,16 @@ func Apply(ctx context.Context, o Options, action string, dry bool, cmd Commande
 				return d, err
 			}
 		}
-		if _, err = cmd.Run(ctx, c[0], c[1:]...); err != nil {
-			return d, err
+		out, runErr := cmd.Run(ctx, c[0], c[1:]...)
+		if runErr != nil {
+			if action == "uninstall" && o.OS == "linux" {
+				d.Warnings = append(d.Warnings, runErr.Error()+": "+strings.TrimSpace(out))
+				continue
+			}
+			if o.OS == "darwin" && c[1] == "bootout" && notLoaded(out+" "+runErr.Error()) {
+				continue
+			}
+			return d, runErr
 		}
 	}
 	if action == "uninstall" {
@@ -136,4 +152,9 @@ func Status(ctx context.Context, o Options, cmd Commander) (State, error) {
 		s.Active = e == nil && strings.TrimSpace(out) == "active"
 	}
 	return s, nil
+}
+
+func notLoaded(s string) bool {
+	s = strings.ToLower(s)
+	return strings.Contains(s, "no such process") || strings.Contains(s, "could not find service") || strings.Contains(s, "not found") || strings.Contains(s, "not loaded")
 }

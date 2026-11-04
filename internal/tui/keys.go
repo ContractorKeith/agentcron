@@ -10,6 +10,21 @@ import (
 
 func (m model) key(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := v.String()
+	if m.approveName != "" {
+		name := m.approveName
+		switch key {
+		case "y":
+			m.approveName = ""
+			m.approveSummary = ""
+			if api, ok := m.api.(Approver); ok {
+				return m.action(func(ctx context.Context) error { return api.Approve(ctx, name) })
+			}
+		case "n", "esc":
+			m.approveName = ""
+			m.approveSummary = ""
+		}
+		return m, nil
+	}
 	if m.confirm != "" {
 		switch key {
 		case "y":
@@ -117,8 +132,15 @@ func (m model) key(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			paused := j.State != nil && j.State.Paused
 			return m.action(func(ctx context.Context) error { return m.api.Pause(ctx, name, !paused) })
 		case "a":
-			if api, ok := m.api.(Approver); ok {
-				return m.action(func(ctx context.Context) error { return api.Approve(ctx, name) })
+			if _, ok := m.api.(Approver); ok {
+				j := m.visibleJobs()[m.jobIndex]
+				if j.Job == nil || j.Error != "" {
+					m.footer = "cannot approve invalid job"
+					return m, nil
+				}
+				m.approveName = name
+				m.approveSummary = approvalSummary(*j.Job)
+				return m, nil
 			}
 			m.footer = "approve not available"
 		}

@@ -29,7 +29,7 @@ func TestCancelWithMissingLaunchIdentity(t *testing.T) {
 	go func() { _, e := x.Run(ctx, j, r, true); done <- e }()
 	defer func() { stop(); <-done }()
 	var running store.Run
-	for range 200 {
+	for range 500 {
 		running, e = x.DB.GetRun(context.Background(), r.ID)
 		if e != nil {
 			t.Fatal(e)

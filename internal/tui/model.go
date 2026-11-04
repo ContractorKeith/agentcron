@@ -39,6 +39,7 @@ type model struct {
 	filtering, help, stderr, daemon, busy  bool
 	loading, refreshError, daemonChecked   bool
 	generation                             int
+	approveName, approveSummary            string
 }
 type tickMsg struct{}
 type actionMsg struct{ err error }

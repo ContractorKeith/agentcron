@@ -113,17 +113,23 @@ created_by = "cli"
 
 Runs get a preamble with the job, run id, fire time, previous state and output path, plus the memory note when enabled. Repository runs use branches `agentcron/<job>/<run-id>`; clean worktrees are removed, dirty or ahead worktrees are kept. Inspect with `agentcron worktrees`; preview cleanup with `agentcron prune --dry-run`. Pause/resume with `agentcron pause <name>` / `agentcron resume <name>`.
 
+`prune` keeps dirty or ahead worktrees and lists the files/commits `--force` would destroy; `prune --dry-run` shows which worktrees would be kept or removed, including files and commits protected unless `--force` is set.
+
 ## Memory with mdkb
 
 Install and initialize [mdkb](https://github.com/ContractorKeith/mdkb) separately. With memory enabled, agentcron creates or reuses `agentcron/<job>` in the KB and injects mdkb's MCP server into Claude/Codex runs. The prompt tells the runner which note to read and update. `agentcron memory <name>` prints the note. Missing mdkb degrades to a run without memory and appears in `doctor` warnings.
 
 Set `mdkb_path` and `mdkb_root` in agentcron's `config.toml` to override the executable and KB root. An empty root preserves mdkb's own precedence (`MDKB_ROOT`, then its config/default). A job's explicit mdkb server configuration takes precedence over injection.
 
+Service install captures and prints `PATH` and, when set, `MDKB_ROOT`; reinstall after changing either.
+
+On Linux, run `loginctl enable-linger $USER` to keep the user service running after logout.
+
 ## Safety defaults
 
-An `unknown` outcome after a daemon crash is never automatically re-run. Preflight failures become `blocked_config` and launch nothing. MCP-created jobs start paused and unapproved; a human must run `agentcron approve <name>` or approve in the TUI. MCP write tools require `--allow-write`, and refuse calls inside a run unless `allow_agent_scheduling = true` is set in config. Approval still applies when that setting is enabled.
+An `unknown` outcome after a daemon crash is never automatically re-run. Preflight failures become `blocked_config` and launch nothing. MCP-created jobs start paused and unapproved; a human must run `agentcron approve <name>` or approve in the TUI. MCP write tools require `--allow-write`. CLI, MCP and TUI scheduling writes refuse calls inside a run unless `allow_agent_scheduling = true` is set in config. Approval is refused inside a run even when that setting is enabled. The recursion guard stops accidental and casual recursion; an agent with unrestricted shell can unset `AGENTCRON_RUN_ID`, so runner permissions remain the boundary.
 
-Each run has its own process group. Timeout and cancellation signal the group with SIGTERM, then SIGKILL after a grace period. A descendant that calls `setsid` can escape this containment; OS sandboxes are planned for later. Runner permissions control access outside the worktree. Hand-written job files are trusted local configuration: prevent runners from writing the config directory and check `doctor` warnings when jobs live inside a job repository.
+Each run has its own process group. Timeout and cancellation signal the group with SIGTERM, then SIGKILL after a grace period. Descendants that leave the run's process group (`setsid`, `setpgid`, or shell job control) are not torn down; OS sandboxing is Later. On Linux, stopping the service still kills them through the unit's cgroup. Runner permissions control access outside the worktree. Hand-written job files are trusted local configuration: prevent runners from writing the config directory and check `doctor` warnings when jobs live inside a job repository.
 
 Agentcron preserves the job's runner permissions with one scoped allowance: when it injects mdkb into Claude, it adds `--allowedTools mcp__mdkb__*` to auto-approve that server's tools. A job supplying its own `--mcp-config` receives no injected server or allowance. See [ADR 0003](docs/adr/0003-unattended-safety-defaults.md).
 

@@ -20,8 +20,14 @@ func Read(dir, name string) (Job, error) {
 	if err := ValidateName(name); err != nil {
 		return Job{}, err
 	}
+	if err := requireExact(dir, name); err != nil {
+		return Job{}, err
+	}
 	data, err := os.ReadFile(filepath.Join(dir, name+".toml"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return Job{}, missingJobError{name}
+		}
 		return Job{}, err
 	}
 	return Parse(dir, name, data)
@@ -33,8 +39,14 @@ func ReadForRun(dir, name string) (Job, error) {
 	if err := ValidateName(name); err != nil {
 		return Job{}, err
 	}
+	if err := requireExact(dir, name); err != nil {
+		return Job{}, err
+	}
 	data, err := os.ReadFile(filepath.Join(dir, name+".toml"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return Job{}, missingJobError{name}
+		}
 		return Job{}, err
 	}
 	return parse(dir, name, data, false)
@@ -83,18 +95,26 @@ func Exists(dir, name string) (bool, error) {
 	if err := ValidateName(name); err != nil {
 		return false, err
 	}
-	_, err := os.Lstat(filepath.Join(dir, name+".toml"))
+	entries, err := readJobDir(dir)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	return exactEntry(entries, name+".toml"), nil
 }
 
 // Write uses a same-directory temporary file; readers only see complete definitions.
 func Write(dir string, j Job) error { return publish(dir, j, os.Rename) }
 
 // Create publishes a complete definition only if its name does not already exist.
-func Create(dir string, j Job) error { return publish(dir, j, os.Link) }
+func Create(dir string, j Job) error {
+	if err := CheckAvailable(dir, j.Name); err != nil {
+		return err
+	}
+	return publish(dir, j, os.Link)
+}
 
 func publish(dir string, j Job, commit func(string, string) error) error {
 	if err := j.Validate(dir); err != nil {
@@ -128,6 +148,9 @@ func publish(dir string, j Job, commit func(string, string) error) error {
 
 func Remove(dir, name string) error {
 	if err := ValidateName(name); err != nil {
+		return err
+	}
+	if err := requireExact(dir, name); err != nil {
 		return err
 	}
 	return os.Remove(filepath.Join(dir, name+".toml"))

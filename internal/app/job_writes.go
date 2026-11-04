@@ -16,7 +16,7 @@ func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (
 }
 
 func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, source string) (string, error) {
-	if err := refusePreview(opts); err != nil {
+	if err := checkScheduling(opts); err != nil {
 		return "", err
 	}
 	s, err := openJobs(ctx, opts, c, dry)
@@ -24,17 +24,20 @@ func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, s
 		return "", err
 	}
 	defer s.db.Close()
-	exists, err := jobs.Exists(s.config.JobsDir(), j.Name)
-	if err != nil {
+	if err := jobs.CheckAvailable(s.config.JobsDir(), j.Name); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			err = fmt.Errorf("job %q already exists", j.Name)
+		}
 		return "", &Error{Usage, err}
-	}
-	if exists {
-		return "", &Error{Usage, fmt.Errorf("job %q already exists", j.Name)}
 	}
 	// Creation provenance belongs to the interface, never to caller-supplied TOML.
 	j.CreatedBy = source
 	if err := j.Validate(s.config.JobsDir()); err != nil {
 		return "", &Error{Usage, err}
+	}
+	fires := jobFires(j, s.now, s.now, 1)
+	if len(fires) == 0 || fires[0].After(s.now.AddDate(5, 0, 0)) {
+		return "", &Error{Usage, fmt.Errorf("schedule never fires within 5 years")}
 	}
 	text, err := jobs.Encode(j)
 	if err != nil {
@@ -61,7 +64,7 @@ func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, s
 }
 
 func RemoveJob(ctx context.Context, opts Options, c clock.Clock, name string, dry bool) error {
-	if err := refusePreview(opts); err != nil {
+	if err := checkScheduling(opts); err != nil {
 		return err
 	}
 	s, err := openJobs(ctx, opts, c, dry)
@@ -87,7 +90,7 @@ func RemoveJob(ctx context.Context, opts Options, c clock.Clock, name string, dr
 }
 
 func PauseJob(ctx context.Context, opts Options, c clock.Clock, name string, paused bool) error {
-	if err := refusePreview(opts); err != nil {
+	if err := checkScheduling(opts); err != nil {
 		return err
 	}
 	s, err := openJobs(ctx, opts, c, false)
@@ -100,6 +103,9 @@ func PauseJob(ctx context.Context, opts Options, c clock.Clock, name string, pau
 		return err
 	}
 	state := *view.State
+	if state.Paused && !paused {
+		resetNextFire(&state, *view.Job, s.now)
+	}
 	state.Paused = paused
 	return s.db.PutJobState(ctx, state)
 }

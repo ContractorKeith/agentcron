@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -42,6 +43,12 @@ func isolate(t *testing.T) string {
 }
 
 func build(t *testing.T, dest, pkg string, flags ...string) {
+	if strings.HasPrefix(pkg, "../../testdata/fakes/") {
+		if err := os.Symlink(filepath.Join(fakeBin, filepath.Base(pkg)), dest); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()

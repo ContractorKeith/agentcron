@@ -130,7 +130,7 @@ expect_state blocked blocked_config
 # Missing agent binary, with an isolated PATH that cannot reach real agents.
 PATH="$scratch/empty-path" non_success "$bin" run attention --now
 expect_state attention blocked_config
-"$bin" add short --schedule @daily --runner claude --prompt hi --timeout 150ms >/dev/null
+"$bin" add short --schedule @daily --runner claude --prompt hi --timeout 1s >/dev/null
 FAKE_MODE=ignore-term FAKE_SLEEP=20s non_success "$bin" run short --now
 expect_state short timed_out
 FAKE_MODE=spawn-child FAKE_SLEEP=20s non_success "$bin" run short --now
@@ -164,7 +164,7 @@ FAKE_MODE=dirty "$bin" run dirty --now >/dev/null
 "$bin" worktrees --json | grep '"kept":true' >/dev/null
 "$bin" prune --dry-run >/dev/null
 "$bin" worktrees --json | grep '"kept":true' >/dev/null
-"$bin" prune >/dev/null
+"$bin" prune --force >/dev/null
 test "$("$bin" worktrees --json)" = '[]'
 test -z "$(git -C "$scratch/repo" branch --list 'agentcron/*')"
 "$bin" run success >"$scratch/queued-id"
@@ -335,7 +335,7 @@ grep 'mdkb not available' "$scratch/err" >/dev/null
 PATH="$scratch/memory-path" "$bin" doctor --json | grep 'mdkb is missing' >/dev/null
 PATH="$scratch/memory-path" "$bin" add memory-default-off --schedule @daily --runner claude --prompt hi >/dev/null
 "$bin" show memory-default-off --json | grep '"memory":false' >/dev/null
-"$bin" add memory-budget --schedule @daily --runner claude --prompt hi --memory --timeout 150ms >/dev/null
+"$bin" add memory-budget --schedule @daily --runner claude --prompt hi --memory --timeout 1s >/dev/null
 FAKE_MDKB_CAT_SLEEP=10s FAKE_RECORD="$scratch/memory-budget-record" non_success "$bin" run memory-budget --now
 expect_state memory-budget timed_out
 "$bin" runs memory-budget --limit 1 --json | grep 'setup timed out' >/dev/null
