@@ -36,6 +36,9 @@ func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, 
 	if !exists {
 		approved = j.CreatedBy == "cli"
 	}
+	if !approved {
+		return Run{}, &Error{Refused, fmt.Errorf("job %q is unapproved; run agentcron approve %s first", name, name)}
+	}
 	r, err := store.NewRun(name, "manual", c.Now())
 	if err != nil {
 		return r, err

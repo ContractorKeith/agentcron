@@ -12,6 +12,10 @@ import (
 )
 
 func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (string, error) {
+	return addJob(ctx, opts, c, j, dry, "cli")
+}
+
+func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, source string) (string, error) {
 	if err := refusePreview(opts); err != nil {
 		return "", err
 	}
@@ -28,7 +32,7 @@ func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (
 		return "", &Error{Usage, fmt.Errorf("job %q already exists", j.Name)}
 	}
 	// Creation provenance belongs to the interface, never to caller-supplied TOML.
-	j.CreatedBy = "cli"
+	j.CreatedBy = source
 	if err := j.Validate(s.config.JobsDir()); err != nil {
 		return "", &Error{Usage, err}
 	}
@@ -46,7 +50,7 @@ func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (
 		return "", err
 	}
 	if err := s.db.PutJobState(ctx, store.JobState{
-		Name: j.Name, Approved: true, AnchorAt: s.now, UpdatedAt: s.now,
+		Name: j.Name, Approved: source == "cli", Paused: source == "mcp", AnchorAt: s.now, UpdatedAt: s.now,
 	}); err != nil {
 		return "", err
 	}

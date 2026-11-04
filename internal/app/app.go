@@ -106,6 +106,10 @@ func Doctor(ctx context.Context, opts Options) (Health, error) {
 	if e != nil {
 		return h, e
 	}
+	h.Warnings, e = trustWarnings(c)
+	if e != nil {
+		return h, e
+	}
 	h.DaemonPID = daemon.Holder(c.DataDir)
 	if !h.MDKB && isDir(c.JobsDir()) {
 		entries, err := jobs.List(c.JobsDir())

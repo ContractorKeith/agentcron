@@ -10,3 +10,11 @@ allowance or injected server. Codex overrides for `mcp_servers.mdkb` likewise
 preserve the job's own server configuration.
 
 The server-scoped wildcard follows the [Claude Code MCP permission rules](https://code.claude.com/docs/en/permissions#mcp).
+
+Hand-written job files are trusted local configuration and may be auto-approved;
+runner permissions must prevent writing the config directory, including through tools
+or absolute paths outside the run worktree. The main mitigation for job files tracked
+inside a repository is `doctor`'s warning when the jobs directory is inside a job
+repository; the narrower check during worktree creation refuses a new worktree that
+would contain the config directory, but does not detect tracked job files in the
+source repository.
