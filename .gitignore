@@ -1,0 +1,4 @@
+/agentcron
+/dist/
+*.db
+.DS_Store
