@@ -8,7 +8,7 @@ knowledge base. "Done" for v1 is every row marked v1 in `docs/PLAN.md` §3 passi
 `scripts/accept.sh` on macOS and Linux.
 
 ## Status
-M3 — daemon, tick and service units: done (#4).
+M4 — memory via mdkb: done (#5).
 
 ## Commands
 ```bash

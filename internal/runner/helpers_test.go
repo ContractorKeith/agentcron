@@ -21,6 +21,7 @@ func setup(t *testing.T) (Runner, jobs.Job) {
 	}
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(dir, "gitconfig"))
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("MDKB_ROOT", filepath.Join(dir, "kb"))
 	if e := os.WriteFile(os.Getenv("GIT_CONFIG_GLOBAL"), []byte("[user]\n name = Test\n email = test@example.com\n"), 0600); e != nil {
 		t.Fatal(e)
 	}
@@ -28,7 +29,7 @@ func setup(t *testing.T) (Runner, jobs.Job) {
 	if e := os.Mkdir(bin, 0700); e != nil {
 		t.Fatal(e)
 	}
-	for _, name := range []string{"claude", "codex"} {
+	for _, name := range []string{"claude", "codex", "mdkb"} {
 		cmd := exec.Command("go", "build", "-o", filepath.Join(bin, name), "../../testdata/fakes/"+name)
 		// HOME is isolated; retain the build cache supplied by the test harness.
 		cmd.Env = append(os.Environ(), "GOCACHE="+testCache)
@@ -37,7 +38,7 @@ func setup(t *testing.T) (Runner, jobs.Job) {
 		}
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	for _, name := range []string{"claude", "codex"} {
+	for _, name := range []string{"claude", "codex", "mdkb"} {
 		p, e := exec.LookPath(name)
 		if e != nil || p != filepath.Join(bin, name) {
 			t.Fatal("fake not first on PATH")
@@ -53,6 +54,7 @@ func setup(t *testing.T) (Runner, jobs.Job) {
 	}
 	t.Cleanup(func() { db.Close() })
 	j := jobs.Defaults("fixture")
+	j.Memory = false
 	j.Schedule = "@daily"
 	j.Runner = "claude"
 	j.Prompt = "hello"

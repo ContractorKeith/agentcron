@@ -52,7 +52,7 @@ golden() { # name, args...
   name="$1"; shift
   "$bin" "$@" --json | diff - "testdata/golden/$name.json" >/dev/null || { echo "golden mismatch: $name"; exit 1; }
 }
-golden doctor doctor
+MDKB_ROOT= golden doctor doctor
 export TZ=UTC
 now=2026-11-04T07:00:00-05:00
 cp testdata/jobs/*.toml "$XDG_CONFIG_HOME/agentcron/jobs/"
@@ -231,7 +231,7 @@ daemon_owner=$!
 wait_running restart
 kill -TERM "$daemon_owner"; wait "$daemon_owner"; daemon_owner=
 expect_state restart cancelled
-"$bin" runs restart --limit 1 --json | grep '"error":"daemon stopped"' >/dev/null
+"$bin" runs restart --limit 1 --json | grep '"error":"[^"]*daemon stopped' >/dev/null
 if pgrep -f "$scratch/bin/claude" >"$scratch/survivors"; then echo "surviving fake process"; exit 1; fi
 # no-wait keeps an inherited lock in a detached worker until the run ends.
 "$bin" run due >/dev/null
@@ -287,4 +287,38 @@ for mode in background spawn-child; do
   done
   rm "$scratch/orphan-child"
 done
+
+echo "== memory"
+unset AGENTCRON_CONFIG_DIR AGENTCRON_DATA_DIR
+for f in claude codex mdkb; do
+  test "$(command -v "$f")" = "$scratch/bin/$f"
+done
+mkdir -p "$MDKB_ROOT/.mdkb"
+export FAKE_RECORD="$scratch/memory-record"
+"$bin" add memory-claude --schedule @daily --runner claude --prompt remember >/dev/null
+"$bin" run memory-claude --now >"$scratch/memory-id"
+mcp_file="$XDG_DATA_HOME/agentcron/runs/$(cat "$scratch/memory-id")/mcp.json"
+grep '"command":"'"$scratch/bin/mdkb"'"' "$mcp_file" >/dev/null
+grep '"args":\["--root","'"$MDKB_ROOT"'","mcp","--allow-write"\]' "$mcp_file" >/dev/null
+"$bin" run memory-claude --now >/dev/null
+test "$(grep -c '"new"' "$FAKE_RECORD")" -eq 1
+test "$(grep -c '"cat"' "$FAKE_RECORD")" -eq 1
+"$bin" doctor --json | grep '"kb_initialised":true' >/dev/null
+"$bin" memory memory-claude --json | grep '"note":' >/dev/null
+"$bin" memory memory-claude | grep 'Created by agentcron' >/dev/null
+"$bin" memory unknown >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 2
+"$bin" add memory-codex --schedule @daily --runner codex --prompt remember >/dev/null
+"$bin" run memory-codex --now >/dev/null
+grep 'mcp_servers.mdkb.command=' "$FAKE_RECORD" >/dev/null
+grep 'mcp_servers.mdkb.args=' "$FAKE_RECORD" >/dev/null
+grep 'AGENTCRON_MEMORY_NOTE' "$FAKE_RECORD" >/dev/null
+# An isolated PATH prevents falling through to a real installed mdkb.
+mkdir "$scratch/memory-path"
+cp "$scratch/bin/claude" "$scratch/memory-path/claude"
+PATH="$scratch/memory-path" "$bin" run memory-claude --now >/dev/null
+PATH="$scratch/memory-path" "$bin" doctor --json | grep '"mdkb":false' >/dev/null
+PATH="$scratch/memory-path" "$bin" memory memory-claude >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 1
+grep 'mdkb not available' "$scratch/err" >/dev/null
+unset FAKE_RECORD
+
 echo "accept: ok"

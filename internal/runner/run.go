@@ -37,7 +37,7 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		t := x.Clock.Now().UTC()
 		r.EndedAt = &t
 		if cause != nil {
-			r.Error = cause.Error()
+			r.Error = runError(r.Error, cause)
 		}
 		var err error
 		if !running && (state == "failed" || state == "timed_out" || (state == "skipped" && wasClaimed)) {
@@ -106,8 +106,12 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		return abort(err)
 	}
 	defer stderr.Close()
-	prompt := Preamble(r, last, x.DataDir) + p.prompt
-	cmd := exec.Command(p.binary, Argv(j, r.Worktree, prompt)...)
+	mem, memoryErr := x.prepareMemory(ctx, j, dir)
+	if memoryErr != nil {
+		r.Error = memoryErr.Error()
+	}
+	prompt := Preamble(r, last, x.DataDir, mem.preamble) + p.prompt
+	cmd := exec.Command(p.binary, memoryArgv(j, r, prompt, mem.flags)...)
 	cmd.Dir = r.Worktree
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -128,7 +132,7 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	if last != nil {
 		lastOutput = filepath.Join(x.DataDir, "runs", last.ID, "stdout.log")
 	}
-	cmd.Env = x.runEnv(j, r, lastOutput)
+	cmd.Env = append(x.runEnv(j, r, lastOutput), mem.env...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	started := x.Clock.Now().UTC()
 	if err = cmd.Start(); err != nil {

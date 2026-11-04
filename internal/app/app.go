@@ -10,6 +10,7 @@ import (
 
 	"github.com/ContractorKeith/agentcron/internal/config"
 	"github.com/ContractorKeith/agentcron/internal/daemon"
+	"github.com/ContractorKeith/agentcron/internal/memory"
 	"github.com/ContractorKeith/agentcron/internal/service"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
@@ -63,6 +64,9 @@ type Health struct {
 	Claude        bool          `json:"claude"`
 	Codex         bool          `json:"codex"`
 	MDKB          bool          `json:"mdkb"`
+	MDKBVersion   string        `json:"mdkb_version"`
+	KBRoot        string        `json:"kb_root"`
+	KBInitialised bool          `json:"kb_initialised"`
 	ConfigPath    string        `json:"-"`
 	DataPath      string        `json:"-"`
 }
@@ -78,6 +82,9 @@ func Doctor(ctx context.Context, opts Options) (Health, error) {
 		ConfigPath: c.ConfigDir, DataPath: c.DataDir,
 		Git: onPath("git"), Claude: onPath("claude"), Codex: onPath("codex"), MDKB: onPath("mdkb"),
 	}
+	client, _ := memory.Resolve(c.File())
+	mh := client.Status(ctx)
+	h.MDKB, h.MDKBVersion, h.KBRoot, h.KBInitialised = mh.Present, mh.Version, mh.Root, mh.Initialised
 	if _, err := os.Stat(c.Database()); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return h, &Error{NotInitialized, fmt.Errorf("data directory is not initialised; run agentcron init")}

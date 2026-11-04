@@ -1,0 +1,1 @@
+ALTER TABLE job_state ADD COLUMN memory_note TEXT NOT NULL DEFAULT '';
