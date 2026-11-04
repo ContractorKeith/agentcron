@@ -28,10 +28,9 @@ func Logs(ctx context.Context, opts Options, c clock.Clock, id string, stderr, f
 	if stderr {
 		name = "stderr.log"
 	}
-	path := filepath.Join(s.config.DataDir, "runs", r.ID, name)
 	var offset int64
 	for {
-		f, e := os.Open(path)
+		f, e := openRegularLog(filepath.Join(s.config.DataDir, "runs"), r.ID, name)
 		if e == nil {
 			if _, e = f.Seek(offset, io.SeekStart); e == nil {
 				var n int64

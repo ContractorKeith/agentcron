@@ -25,7 +25,7 @@ func LogTail(ctx context.Context, opts Options, c clock.Clock, id string, stderr
 	if stderr {
 		name = "stderr.log"
 	}
-	f, err := os.Open(filepath.Join(s.config.DataDir, "runs", r.ID, name))
+	f, err := openRegularLog(filepath.Join(s.config.DataDir, "runs"), r.ID, name)
 	if errors.Is(err, os.ErrNotExist) {
 		return "", nil
 	}
