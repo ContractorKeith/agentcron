@@ -24,4 +24,5 @@ CREATE TABLE runs (
  kept INTEGER NOT NULL DEFAULT 0 CHECK (kept IN (0, 1)),
  error TEXT
 );
-CREATE UNIQUE INDEX runs_fire ON runs (job, scheduled_for, trigger);
+CREATE UNIQUE INDEX runs_fire ON runs (job, scheduled_for, trigger)
+ WHERE trigger IN ('schedule', 'catchup');
