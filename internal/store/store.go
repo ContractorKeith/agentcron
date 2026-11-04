@@ -7,12 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 
 	"modernc.org/sqlite"
 )
 
-type Store struct{ db *sql.DB }
+type Store struct {
+	db       *sql.DB
+	path     string
+	identity os.FileInfo
+}
 
 // Open creates or opens the ledger and applies migrations atomically.
 func Open(ctx context.Context, path string) (*Store, error) {
@@ -54,6 +59,12 @@ func open(ctx context.Context, path string, create bool) (*Store, error) {
 		}
 		return nil, fmt.Errorf("open ledger %s: %w", absolute, err)
 	}
+	s.path = absolute
+	s.identity, err = os.Stat(absolute)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -87,4 +98,16 @@ func (s *Store) WithImmediateTx(ctx context.Context, fn func(*ImmediateTx) error
 		return err
 	}
 	return tx.Commit()
+}
+
+// CheckIdentity rejects an unlinked or replaced ledger before another scheduling pass.
+func (s *Store) CheckIdentity() error {
+	current, err := os.Stat(s.path)
+	if err != nil {
+		return fmt.Errorf("ledger path unavailable: %w", err)
+	}
+	if !os.SameFile(s.identity, current) {
+		return fmt.Errorf("ledger file replaced: %s", s.path)
+	}
+	return nil
 }

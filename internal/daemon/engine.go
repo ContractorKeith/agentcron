@@ -40,6 +40,10 @@ func (e *Engine) log(v any) {
 }
 func (e *Engine) Wait() { e.wg.Wait() }
 func (e *Engine) Tick(ctx context.Context) error {
+	if err := e.DB.CheckIdentity(); err != nil {
+		e.log(map[string]string{"error": err.Error()})
+		return err
+	}
 	if err := e.Reconcile(ctx); err != nil {
 		return err
 	}
