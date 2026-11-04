@@ -32,7 +32,7 @@ func (s *Store) DeleteTerminal(ctx context.Context, id string) error {
 }
 func (s *Store) SetDaemonStopped(ctx context.Context, id string) error {
 	return s.WithImmediateTx(ctx, func(tx *ImmediateTx) error {
-		_, e := tx.Exec(ctx, "UPDATE runs SET state='cancelled',error='daemon stopped' WHERE id=? AND state NOT IN ('queued','claimed','running')", id)
+		_, e := tx.Exec(ctx, "UPDATE runs SET state='cancelled',error='daemon stopped' WHERE id=? AND state='cancelled'", id)
 		return e
 	})
 }

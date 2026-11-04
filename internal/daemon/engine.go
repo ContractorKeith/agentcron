@@ -9,14 +9,17 @@ import (
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/jobs"
-	"github.com/ContractorKeith/agentcron/internal/runner"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
+
+type Executor interface {
+	Run(context.Context, jobs.Job, store.Run, bool) (store.Run, error)
+}
 
 type Engine struct {
 	DB                    *store.Store
 	Clock                 clock.Clock
-	Runner                runner.Runner
+	Runner                Executor
 	Sync                  func(context.Context) (map[string]jobs.Job, error)
 	Recover               func(context.Context, *store.Run) error
 	Concurrency, KeepRuns int
@@ -70,7 +73,7 @@ func (e *Engine) Start(ctx context.Context, runs []store.Run, defs map[string]jo
 		go func(r store.Run) {
 			defer e.wg.Done()
 			result, err := e.Runner.Run(ctx, defs[r.Job], r, true)
-			if ctx.Err() != nil && store.Terminal(result.State) {
+			if ctx.Err() != nil && result.State == "cancelled" {
 				if stopErr := e.DB.SetDaemonStopped(context.WithoutCancel(ctx), r.ID); stopErr != nil {
 					err = stopErr
 				}
