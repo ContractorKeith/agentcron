@@ -11,6 +11,10 @@ var fakeBin string
 
 func TestMain(m *testing.M) {
 	if dir := os.Getenv("TEST_AGENTCRON_FAKES"); dir != "" {
+		if err := testutil.ValidateFakes(dir); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		fakeBin = dir
 		os.Exit(m.Run())
 	}

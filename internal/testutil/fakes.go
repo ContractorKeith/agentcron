@@ -31,3 +31,17 @@ func Fakes() (string, func(), error) {
 	}
 	return dir, cleanup, nil
 }
+
+// ValidateFakes checks inherited fixture paths before any subprocess can use them.
+func ValidateFakes(dir string) error {
+	for _, name := range []string{"claude", "codex", "mdkb"} {
+		info, err := os.Stat(filepath.Join(dir, name))
+		if err != nil {
+			return fmt.Errorf("invalid inherited fakes: %s: %w", name, err)
+		}
+		if !info.Mode().IsRegular() || info.Mode().Perm()&0111 == 0 {
+			return fmt.Errorf("invalid inherited fakes: %s is not an executable regular file", name)
+		}
+	}
+	return nil
+}
