@@ -5,9 +5,10 @@ import (
 	"os/signal"
 	"syscall"
 	"testing"
+	"time"
 )
 
-func TestWakeRejectsUnlockedAndStaleIdentity(t *testing.T) {
+func TestWakeUsesIdentityWithoutAcquiringLease(t *testing.T) {
 	dir := t.TempDir()
 	hup := make(chan os.Signal, 1)
 	signal.Notify(hup, syscall.SIGHUP)
@@ -25,10 +26,18 @@ func TestWakeRejectsUnlockedAndStaleIdentity(t *testing.T) {
 	}
 	r.Command, _ = processCommand(os.Getpid())
 	check(t, writeLockRecord(lease.File, r))
-	// Keep a valid identity in an unlocked file: the record alone is insufficient.
+	// An identity-valid record is sufficient; waking must not acquire the lease.
 	lease.Transfer()
 	check(t, lease.Close())
-	if Wake(dir) {
-		t.Fatal("signalled without lock")
+	if !Wake(dir) {
+		t.Fatal("identity-valid wake failed")
 	}
+	select {
+	case <-hup:
+	case <-time.After(time.Second):
+		t.Fatal("no HUP")
+	}
+	next, err := Lock(dir)
+	check(t, err)
+	check(t, next.Close())
 }
