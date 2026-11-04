@@ -29,6 +29,7 @@ type Engine struct {
 	mu                    sync.Mutex
 	active                map[string]bool
 	statuses              map[string]string
+	wake                  chan struct{}
 }
 
 func (e *Engine) log(v any) {
@@ -87,7 +88,12 @@ func (e *Engine) Start(ctx context.Context, runs []store.Run, defs map[string]jo
 			e.log(map[string]any{"run": r.ID, "state": result.State, "error": errString(err)})
 			e.mu.Lock()
 			delete(e.active, r.ID)
+			wake := e.wake
 			e.mu.Unlock()
+			select {
+			case wake <- struct{}{}:
+			default:
+			}
 		}(r)
 	}
 }
@@ -103,6 +109,9 @@ func (e *Engine) Loop(ctx context.Context, hup <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer e.Wait()
 	defer cancel()
+	e.mu.Lock()
+	e.wake = make(chan struct{}, 1)
+	e.mu.Unlock()
 	for {
 		if ctx.Err() != nil {
 			return nil
@@ -136,6 +145,7 @@ func (e *Engine) Loop(ctx context.Context, hup <-chan struct{}) error {
 		case <-ctx.Done():
 			return nil
 		case <-hup:
+		case <-e.wake:
 		case <-e.Clock.After(delay):
 		}
 	}
