@@ -40,13 +40,11 @@ func (e *Engine) Enqueue(ctx context.Context, defs map[string]jobs.Job, states m
 			return nil
 		}
 		for !fire.After(now) {
-			if fire.Equal(now) {
+			if fire.After(now.Add(-30 * time.Second)) {
 				onTime = append(onTime, fire)
 			} else if j.Catchup == "one" {
 				t := fire
 				missed = &t
-			} else if fire.After(now.Add(-30 * time.Second)) {
-				onTime = append(onTime, fire)
 			}
 			next, ok := s.Next(fire, loc)
 			if !ok {
