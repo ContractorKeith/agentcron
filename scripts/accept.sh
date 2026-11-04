@@ -66,6 +66,7 @@ golden next-spring next --schedule "30 2 * * *" --timezone America/New_York --co
 golden next-fall next --schedule "30 1 * * *" --timezone America/New_York --count 3 --now 2026-11-01T04:00:00Z
 
 echo "== live checks"
+"$bin" tui </dev/null >/dev/null 2>&1 && exit 1 || test $? -eq 2
 "$bin" init >/dev/null                                                   # init is idempotent
 "$bin" --data-dir "$scratch/nowhere" doctor >/dev/null 2>&1 && exit 1 || test $? -eq 3  # uninitialised exits 3
 

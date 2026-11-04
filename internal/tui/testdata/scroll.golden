@@ -1,0 +1,24 @@
+agentcron
+daemon not running
+> Jobs  name | schedule | next | last | status
+  job-36 | — | — | — | paused
+  job-37 | — | — | — | paused
+  job-38 | — | — | — | paused
+  job-39 | — | — | — | paused
+  job-40 | — | — | — | paused
+  job-41 | — | — | — | paused
+  job-42 | — | — | — | paused
+  job-43 | — | — | — | paused
+> job-44 | — | — | — | paused
+Runs — job-44  id | trigger | state | started | duration
+  No runs
+
+
+
+
+
+
+
+
+
+j/k tab pane enter logs r run p pause a approve c cancel / filter ? help q quit

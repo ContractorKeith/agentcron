@@ -17,3 +17,5 @@ args     = ["--allowedTools", "Bash(gh issue *)"]
 
 **Status:** planned, no code yet. See [the plan](docs/PLAN.md) and the
 [glossary](CONTEXT.md). MIT licensed.
+
+Run `agentcron tui` to browse jobs, runs and live logs in your terminal.

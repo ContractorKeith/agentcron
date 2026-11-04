@@ -95,6 +95,7 @@ func newRoot() *cobra.Command {
 	serviceCommands(root, &opts, output)
 	memoryCommand(root, &opts, output)
 	mcpCommands(root, &opts, output)
+	root.AddCommand(tuiCommand(&opts))
 	return root
 }
 

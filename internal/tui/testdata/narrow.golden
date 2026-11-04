@@ -1,0 +1,24 @@
+agentcron
+daemon not running
+> Jobs  name | schedule | next | last | status
+> daily | @daily | — | — | active
+Runs — daily  id | trigger | state | started | duration
+> r_one | manual | running | — | —
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+j/k ↑↓ tab enter r run p pause a approve c cancel / ? q quit

@@ -8,7 +8,7 @@ knowledge base. "Done" for v1 is every row marked v1 in `docs/PLAN.md` §3 passi
 `scripts/accept.sh` on macOS and Linux.
 
 ## Status
-M5 — MCP server with approval flow: done (#6).
+M6 — TUI: done (#7).
 
 ## Commands
 ```bash
