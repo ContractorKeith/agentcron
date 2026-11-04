@@ -28,6 +28,7 @@ func TestFakesRecordOK(t *testing.T) {
 	}
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("FAKE_MODE", "ok")
+	t.Setenv("FAKE_STDIN", "1")
 	t.Setenv("FAKE_SLEEP", "")
 	t.Setenv("AGENTCRON_JOB", "fixture")
 	t.Setenv("AGENTCRON_FUTURE_FIELD", "also-recorded")

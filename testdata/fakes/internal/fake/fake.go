@@ -35,9 +35,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	input, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return err
+	var input []byte
+	if os.Getenv("FAKE_STDIN") == "1" {
+		input, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
 	}
 	env := make(map[string]string)
 	for _, entry := range os.Environ() {
