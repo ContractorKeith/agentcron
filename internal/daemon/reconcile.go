@@ -9,6 +9,7 @@ import (
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/runner"
+	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
 // Process seams let restart rules use fake identities without starting processes.
@@ -55,7 +56,7 @@ func (e *Engine) reconcile(ctx context.Context, p Processes) error {
 			start, err := p.Start(*r.PID)
 			live = err == nil && (r.ProcStart == nil || start.Equal(*r.ProcStart)) && (r.StartedAt == nil || !start.After(*r.StartedAt))
 		}
-		if ownerLive && (r.State == "claimed" || live) {
+		if ownerLive {
 			continue
 		}
 		// Never adopt an orphan: tear down only a matching process identity.
@@ -80,6 +81,10 @@ func (e *Engine) reconcile(ctx context.Context, p Processes) error {
 			}
 		}
 		if err := e.DB.Unknown(ctx, r); err != nil {
+			current, readErr := e.DB.GetRun(ctx, r.ID)
+			if readErr == nil && store.Terminal(current.State) {
+				continue
+			}
 			return err
 		}
 		r.State = "unknown"
