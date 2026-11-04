@@ -18,7 +18,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			return err
 		}
 		var current int
-		if err := tx.conn.QueryRowContext(ctx, "SELECT COALESCE(MAX(version), 0) FROM schema_version").Scan(&current); err != nil {
+		if err := tx.tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(version), 0) FROM schema_version").Scan(&current); err != nil {
 			return err
 		}
 		names, err := fs.Glob(migrations, "migrations/*.sql")

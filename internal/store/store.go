@@ -31,6 +31,7 @@ func open(ctx context.Context, path string, create bool) (*Store, error) {
 	uri := url.URL{Scheme: "file", Path: absolute}
 	q := url.Values{}
 	q.Add("_pragma", "busy_timeout(5000)")
+	q.Set("_txlock", "immediate")
 	if !create {
 		q.Set("mode", "ro")
 	}
@@ -62,10 +63,10 @@ func (s *Store) SchemaVersion(ctx context.Context) (int, error) {
 
 // ImmediateTx exposes queries on the connection holding the write reservation.
 // The connection and any rows must not escape the callback.
-type ImmediateTx struct{ conn *sql.Conn }
+type ImmediateTx struct{ tx *sql.Tx }
 
 func (tx *ImmediateTx) Exec(ctx context.Context, query string, args ...any) (int64, error) {
-	result, err := tx.conn.ExecContext(ctx, query, args...)
+	result, err := tx.tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, err
 	}
@@ -74,18 +75,13 @@ func (tx *ImmediateTx) Exec(ctx context.Context, query string, args ...any) (int
 
 // WithImmediateTx reserves the writer before invoking fn, even before its first write.
 func (s *Store) WithImmediateTx(ctx context.Context, fn func(*ImmediateTx) error) error {
-	conn, err := s.db.Conn(ctx)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-	if _, err = conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+	defer tx.Rollback()
+	if err := fn(&ImmediateTx{tx: tx}); err != nil {
 		return err
 	}
-	defer func() { _, _ = conn.ExecContext(context.Background(), "ROLLBACK") }()
-	if err = fn(&ImmediateTx{conn: conn}); err != nil {
-		return err
-	}
-	_, err = conn.ExecContext(ctx, "COMMIT")
-	return err
+	return tx.Commit()
 }

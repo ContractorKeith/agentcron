@@ -105,7 +105,7 @@ func TestImmediateTxSerializesWriters(t *testing.T) {
 			close(entered)
 			// The first writer's row must already be committed when this callback starts.
 			var count int
-			if err := tx.conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM job_state").Scan(&count); err != nil {
+			if err := tx.tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM job_state").Scan(&count); err != nil {
 				return err
 			}
 			if count != 1 {
