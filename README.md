@@ -6,7 +6,7 @@ Schedule recurring agent work on your own Mac or Linux machine. One Go binary ru
 
 ## Install
 
-After v0.1.0 and its tap formula are published:
+With Homebrew (macOS and Linux):
 
 ```bash
 brew install contractorkeith/tap/agentcron

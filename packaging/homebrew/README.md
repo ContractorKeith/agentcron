@@ -15,6 +15,6 @@ The checked-in formula is a template for `ContractorKeith/homebrew-tap`.
    and Linux.
 
 The script never tags, publishes, or pushes to the tap. Pass the checksums file
-as the second argument and an optional output formula path
-as the third argument.
+as the second argument. An optional third argument names an existing formula file to
+update in place (copy this template there first); without it the template is updated.
 Archives include the `v` prefix: `agentcron_v0.1.0_darwin_arm64.tar.gz`.
