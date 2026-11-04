@@ -19,6 +19,7 @@ staticcheck ./...
 echo "== build"
 go build -trimpath -ldflags "-s -w -X main.version=v0.0.0-accept" -o "$bin" ./cmd/agentcron
 "$bin" version
+go build -o "$scratch/seed" ./testdata/seed
 
 echo "== fakes"
 mkdir -p "$scratch/bin"
@@ -46,9 +47,9 @@ golden() { # name, args...
 }
 golden doctor doctor
 export TZ=UTC
-now=2026-11-04T12:00:00Z
+now=2026-11-04T07:00:00-05:00
 cp testdata/jobs/*.toml "$XDG_CONFIG_HOME/agentcron/jobs/"
-"$bin" pause macro --now "$now" >/dev/null
+"$scratch/seed" "$now" macro
 golden ls ls --now "$now"
 for job in cron macro interval once zoned; do
   golden "show-$job" show "$job" --now "$now"
@@ -61,9 +62,15 @@ echo "== live checks"
 "$bin" init >/dev/null                                                   # init is idempotent
 "$bin" --data-dir "$scratch/nowhere" doctor >/dev/null 2>&1 && exit 1 || test $? -eq 3  # uninitialised exits 3
 
-"$bin" add preview --schedule @daily --runner command --command cat --prompt hi --dry-run --now "$now" >"$scratch/preview"
+"$bin" add preview --schedule @daily --runner command --command cat --prompt hi --dry-run >"$scratch/preview"
 test ! -e "$XDG_CONFIG_HOME/agentcron/jobs/preview.toml"
-"$bin" add roundtrip --schedule @daily --runner claude --prompt hi --now "$now" >/dev/null
+for action in pause resume rm; do
+  "$bin" "$action" macro --now "$now" >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 2
+  grep now "$scratch/err" >/dev/null
+done
+"$bin" add pinned --schedule @daily --runner claude --prompt hi --now "$now" >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 2
+test ! -e "$XDG_CONFIG_HOME/agentcron/jobs/pinned.toml"
+"$bin" add roundtrip --schedule @daily --runner claude --prompt hi >/dev/null
 "$bin" add roundtrip --schedule @daily --runner claude --prompt hi >/dev/null 2>&1 && exit 1 || test $? -eq 2
 "$bin" rm roundtrip --dry-run >/dev/null
 "$bin" show roundtrip --json >/dev/null

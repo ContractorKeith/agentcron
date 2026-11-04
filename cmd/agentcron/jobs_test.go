@@ -32,7 +32,7 @@ func TestJobCommands(t *testing.T) {
 	if out, err := cli(t, append(append([]string{}, args...), "--dry-run")...); err != nil || !strings.Contains(out, "command = [\"cat\", \"-n\"]") {
 		t.Fatal(out, err)
 	}
-	if _, err := cli(t, append(args, now...)...); err != nil {
+	if _, err := cli(t, args...); err != nil {
 		t.Fatal(err)
 	}
 	out, err := cli(t, append([]string{"show", "echoer", "--json"}, now...)...)

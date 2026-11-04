@@ -215,7 +215,7 @@ only add one line to the cobra root).
 
 ## 8. Acceptance
 
-Tests and accept.sh pin time with the hidden global flag `--now <RFC3339>`.
+Tests and accept.sh preview time with the hidden read-only flag `--now <RFC3339>`; write commands refuse it.
 
 `scripts/accept.sh` is the acceptance. It builds, runs the gate (race tests, gofmt, vet,
 staticcheck), isolates HOME/XDG/git config in a scratch dir, puts the fake runners first

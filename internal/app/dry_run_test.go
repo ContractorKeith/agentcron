@@ -24,7 +24,7 @@ func TestDryRunsPreserveState(t *testing.T) {
 	if _, err := AddJob(ctx, opts, c, j, false); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ := config.Load(opts)
+	cfg, _ := config.Load(opts.configOptions())
 	read := func() map[string]store.JobState {
 		t.Helper()
 		db, err := store.OpenExisting(ctx, cfg.Database())

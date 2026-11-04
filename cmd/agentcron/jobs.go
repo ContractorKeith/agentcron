@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ContractorKeith/agentcron/internal/app"
@@ -15,7 +16,7 @@ type outputFunc func(*cobra.Command, any, string, ...any) error
 func jobCommands(root *cobra.Command, opts *app.Options, output outputFunc) {
 	var now string
 	root.PersistentFlags().StringVar(&now, "now", "", "")
-	// Test-only clock pin for reproducible acceptance goldens; never used by normal runs.
+	// Read-only clock pin for reproducible acceptance goldens; writes are refused.
 	_ = root.PersistentFlags().MarkHidden("now")
 	current := func() clock.Clock {
 		if now != "" {
@@ -25,7 +26,8 @@ func jobCommands(root *cobra.Command, opts *app.Options, output outputFunc) {
 		return clock.Real{}
 	}
 	root.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
-		if now != "" {
+		opts.ReadOnly = root.PersistentFlags().Changed("now")
+		if opts.ReadOnly {
 			if _, err := time.Parse(time.RFC3339, now); err != nil {
 				return &app.Error{Code: app.Usage, Err: fmt.Errorf("now: %w", err)}
 			}
@@ -66,7 +68,10 @@ func jobCommands(root *cobra.Command, opts *app.Options, output outputFunc) {
 		if err := app.RemoveJob(cmd.Context(), *opts, current(), args[0], dry); err != nil {
 			return err
 		}
-		return output(cmd, nil, "Removed %s (dry-run=%t)\n", args[0], dry)
+		if dry {
+			return output(cmd, nil, "Would remove %s\n", args[0])
+		}
+		return output(cmd, nil, "Removed %s\n", args[0])
 	}}
 	remove.Flags().BoolVar(&dry, "dry-run", false, "Preview removal")
 	root.AddCommand(remove)
@@ -89,8 +94,15 @@ func jobCommands(root *cobra.Command, opts *app.Options, output outputFunc) {
 		if err != nil {
 			return err
 		}
-		data, _ := json.MarshalIndent(result, "", "  ")
-		return output(cmd, result, "%s\n", data)
+		var text strings.Builder
+		for _, fire := range result {
+			text.WriteString(fire.At.UTC().Format(time.RFC3339))
+			if fire.Name != "" {
+				text.WriteString("  " + fire.Name)
+			}
+			text.WriteByte('\n')
+		}
+		return output(cmd, result, "%s", text.String())
 	}}
 	next.Flags().StringVar(&expr, "schedule", "", "Ad hoc schedule")
 	next.Flags().StringVar(&zone, "timezone", "", "Schedule timezone")

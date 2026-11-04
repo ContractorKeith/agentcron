@@ -45,8 +45,11 @@ func (s *Store) JobStates(ctx context.Context) (map[string]JobState, error) {
 			if e != nil {
 				return nil, e
 			}
+			t = t.UTC()
 			st.NextFire = &t
 		}
+		st.UpdatedAt = st.UpdatedAt.UTC()
+		st.AnchorAt = st.AnchorAt.UTC()
 		states[st.Name] = st
 	}
 	return states, rows.Err()

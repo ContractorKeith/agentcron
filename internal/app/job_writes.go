@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/jobs"
@@ -10,6 +12,9 @@ import (
 )
 
 func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (string, error) {
+	if err := refusePreview(opts); err != nil {
+		return "", err
+	}
 	s, err := openJobs(ctx, opts, c, dry)
 	if err != nil {
 		return "", err
@@ -34,7 +39,10 @@ func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (
 	if dry {
 		return text, nil
 	}
-	if err := jobs.Write(s.config.JobsDir(), j); err != nil {
+	if err := jobs.Create(s.config.JobsDir(), j); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return "", &Error{Usage, fmt.Errorf("job %q already exists", j.Name)}
+		}
 		return "", err
 	}
 	if err := s.db.PutJobState(ctx, store.JobState{
@@ -49,6 +57,9 @@ func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (
 }
 
 func RemoveJob(ctx context.Context, opts Options, c clock.Clock, name string, dry bool) error {
+	if err := refusePreview(opts); err != nil {
+		return err
+	}
 	s, err := openJobs(ctx, opts, c, dry)
 	if err != nil {
 		return err
@@ -72,6 +83,9 @@ func RemoveJob(ctx context.Context, opts Options, c clock.Clock, name string, dr
 }
 
 func PauseJob(ctx context.Context, opts Options, c clock.Clock, name string, paused bool) error {
+	if err := refusePreview(opts); err != nil {
+		return err
+	}
 	s, err := openJobs(ctx, opts, c, false)
 	if err != nil {
 		return err
@@ -84,4 +98,11 @@ func PauseJob(ctx context.Context, opts Options, c clock.Clock, name string, pau
 	state := *view.State
 	state.Paused = paused
 	return s.db.PutJobState(ctx, state)
+}
+
+func refusePreview(opts Options) error {
+	if opts.ReadOnly {
+		return &Error{Usage, fmt.Errorf("--now is a read-only preview; write commands are refused")}
+	}
+	return nil
 }

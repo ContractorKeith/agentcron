@@ -37,7 +37,6 @@ func TestInvalidFields(t *testing.T) {
 		{"prompt", func(j *Job) { j.PromptFile = "p.md" }},
 		{"command", func(j *Job) { j.Runner = "command" }},
 		{"command", func(j *Job) { j.Command = []string{"cat"} }},
-		{"command", func(j *Job) { j.Command = []string{} }},
 		{"command", func(j *Job) { j.Runner = "command"; j.Command = []string{""} }},
 		{"timeout", func(j *Job) { j.Timeout = "0s" }},
 		{"timeout", func(j *Job) { j.Timeout = "-1m" }},

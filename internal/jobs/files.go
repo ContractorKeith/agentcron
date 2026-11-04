@@ -68,7 +68,12 @@ func Exists(dir, name string) (bool, error) {
 }
 
 // Write uses a same-directory temporary file; readers only see complete definitions.
-func Write(dir string, j Job) error {
+func Write(dir string, j Job) error { return publish(dir, j, os.Rename) }
+
+// Create publishes a complete definition only if its name does not already exist.
+func Create(dir string, j Job) error { return publish(dir, j, os.Link) }
+
+func publish(dir string, j Job, commit func(string, string) error) error {
 	if err := j.Validate(dir); err != nil {
 		return err
 	}
@@ -92,7 +97,7 @@ func Write(dir string, j Job) error {
 	if err = f.Close(); err != nil {
 		return err
 	}
-	if err = os.Rename(f.Name(), filepath.Join(dir, j.Name+".toml")); err != nil {
+	if err = commit(f.Name(), filepath.Join(dir, j.Name+".toml")); err != nil {
 		return fmt.Errorf("write job: %w", err)
 	}
 	return nil

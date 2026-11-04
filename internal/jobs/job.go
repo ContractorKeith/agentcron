@@ -61,7 +61,7 @@ func (j *Job) Validate(dir string) error {
 		if len(j.Command) == 0 || j.Command[0] == "" {
 			return fmt.Errorf("command: runner command requires argv")
 		}
-	} else if j.Command != nil {
+	} else if len(j.Command) > 0 {
 		return fmt.Errorf("command: only valid for runner command")
 	}
 	if j.PromptFile != "" {
@@ -112,6 +112,9 @@ func (j *Job) Validate(dir string) error {
 			return fmt.Errorf("repo: %w", err)
 		}
 		j.Repo = filepath.Join(home, strings.TrimPrefix(j.Repo, "~"))
+	}
+	if j.Repo != "" && !filepath.IsAbs(j.Repo) {
+		return fmt.Errorf("repo: must be an absolute path")
 	}
 	return nil
 }

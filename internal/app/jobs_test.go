@@ -72,7 +72,7 @@ func TestJobLifecycle(t *testing.T) {
 	if _, err := ShowJob(ctx, opts, c, "morning"); Code(err) != Usage {
 		t.Fatal(err)
 	}
-	cfg, _ := config.Load(opts)
+	cfg, _ := config.Load(opts.configOptions())
 	db, err := store.Open(ctx, cfg.Database())
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +108,7 @@ func TestMCPAndNextValidation(t *testing.T) {
 	if err := Init(ctx, opts); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ := config.Load(opts)
+	cfg, _ := config.Load(opts.configOptions())
 	j := NewJob("agent")
 	j.Schedule = "@daily"
 	j.Runner = "codex"

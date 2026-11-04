@@ -12,11 +12,20 @@ import (
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
-type Options = config.Options
+type Options struct {
+	ConfigDir string
+	DataDir   string
+	// ReadOnly evaluates pinned-time previews without changing persisted job state.
+	ReadOnly bool
+}
+
+func (o Options) configOptions() config.Options {
+	return config.Options{ConfigDir: o.ConfigDir, DataDir: o.DataDir}
+}
 
 // Init creates directories, default settings and the ledger, preserving existing settings.
 func Init(ctx context.Context, opts Options) error {
-	c, err := config.Load(opts)
+	c, err := config.Load(opts.configOptions())
 	if err != nil {
 		return err
 	}
@@ -56,7 +65,7 @@ type Health struct {
 
 // Doctor inspects paths and executable presence without creating a missing ledger.
 func Doctor(ctx context.Context, opts Options) (Health, error) {
-	c, err := config.Load(opts)
+	c, err := config.Load(opts.configOptions())
 	if err != nil {
 		return Health{}, err
 	}
