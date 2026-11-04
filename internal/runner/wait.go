@@ -2,9 +2,7 @@ package runner
 
 import (
 	"context"
-	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -18,12 +16,7 @@ func (x Runner) waitProcess(ctx context.Context, pid int, done <-chan error, tim
 			return "succeeded", err
 		default:
 		}
-		err := terminate(pid, done, x.Clock, x.Grace)
-		var exit *exec.ExitError
-		if err == nil || (errors.As(err, &exit) && exit.ProcessState.Exited()) {
-			return "succeeded", err
-		}
-		return state, err
+		return state, terminate(pid, done, x.Clock, x.Grace)
 	}
 	for {
 		select {
