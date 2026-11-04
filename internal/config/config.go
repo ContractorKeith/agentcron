@@ -10,6 +10,10 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+type ValidationError struct{ Err error }
+
+func (e *ValidationError) Error() string { return e.Err.Error() }
+
 const Defaults = "concurrency = 2\nkeep_runs = 50\nallow_agent_scheduling = false\nmdkb_root = \"\"\n"
 
 type Options struct {
@@ -56,8 +60,11 @@ func Load(opts Options) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	if c.Concurrency < 1 || c.KeepRuns < 0 {
-		return Config{}, fmt.Errorf("concurrency must be positive and keep_runs nonnegative")
+	if c.Concurrency < 1 {
+		return Config{}, &ValidationError{fmt.Errorf("concurrency must be positive")}
+	}
+	if c.KeepRuns < 1 {
+		return Config{}, &ValidationError{fmt.Errorf("keep_runs must be at least 1")}
 	}
 	return c, nil
 }

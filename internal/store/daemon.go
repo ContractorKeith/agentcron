@@ -24,11 +24,14 @@ func (s *Store) Unknown(ctx context.Context, r Run) error {
 	r.State = "unknown"
 	return s.finishRun(ctx, r, from)
 }
-func (s *Store) DeleteTerminal(ctx context.Context, id string) error {
-	return s.WithImmediateTx(ctx, func(tx *ImmediateTx) error {
-		_, e := tx.Exec(ctx, "DELETE FROM runs WHERE id=? AND kept=0 AND state NOT IN ('queued','claimed','running')", id)
-		return e
+func (s *Store) DeleteTerminal(ctx context.Context, id string) (bool, error) {
+	var deleted int64
+	err := s.WithImmediateTx(ctx, func(tx *ImmediateTx) error {
+		var err error
+		deleted, err = tx.Exec(ctx, "DELETE FROM runs WHERE id=? AND kept=0 AND state NOT IN ('queued','claimed','running')", id)
+		return err
 	})
+	return err == nil && deleted == 1, err
 }
 func (s *Store) SetDaemonStopped(ctx context.Context, id string) error {
 	return s.WithImmediateTx(ctx, func(tx *ImmediateTx) error {

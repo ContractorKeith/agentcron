@@ -22,10 +22,14 @@ func (e *Engine) Retention(ctx context.Context) error {
 		if counts[r.Job] <= e.KeepRuns || r.Kept {
 			continue
 		}
-		if err := os.RemoveAll(filepath.Join(e.DataDir, "runs", r.ID)); err != nil {
+		deleted, err := e.DB.DeleteTerminal(ctx, r.ID)
+		if err != nil {
 			return err
 		}
-		if err := e.DB.DeleteTerminal(ctx, r.ID); err != nil {
+		if !deleted {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(e.DataDir, "runs", r.ID)); err != nil {
 			return err
 		}
 		e.log(map[string]string{"run": r.ID, "state": "pruned"})
