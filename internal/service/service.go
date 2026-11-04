@@ -67,12 +67,12 @@ func (o Options) args() []string {
 func (o Options) Commands(action string) [][]string {
 	if o.OS == "darwin" {
 		if action == "install" {
-			return [][]string{{"launchctl", "bootstrap", o.domain(), o.file()}}
+			return [][]string{{"launchctl", "bootout", o.domain() + "/com.contractorkeith.agentcron"}, {"launchctl", "bootstrap", o.domain(), o.file()}}
 		}
 		return [][]string{{"launchctl", "bootout", o.domain() + "/com.contractorkeith.agentcron"}}
 	}
 	if action == "install" {
-		return [][]string{{"systemctl", "--user", "daemon-reload"}, {"systemctl", "--user", "enable", "--now", "agentcron.service"}}
+		return [][]string{{"systemctl", "--user", "daemon-reload"}, {"systemctl", "--user", "enable", "agentcron.service"}, {"systemctl", "--user", "restart", "agentcron.service"}}
 	}
 	return [][]string{{"systemctl", "--user", "disable", "--now", "agentcron.service"}, {"systemctl", "--user", "daemon-reload"}}
 }
@@ -103,8 +103,12 @@ func Apply(ctx context.Context, o Options, action string, dry bool, cmd Commande
 				return d, err
 			}
 		}
-		if _, err = cmd.Run(ctx, c[0], c[1:]...); err != nil {
-			return d, err
+		out, runErr := cmd.Run(ctx, c[0], c[1:]...)
+		if runErr != nil {
+			if o.OS == "darwin" && c[1] == "bootout" && notLoaded(out+" "+runErr.Error()) {
+				continue
+			}
+			return d, runErr
 		}
 	}
 	if action == "uninstall" {
@@ -136,4 +140,9 @@ func Status(ctx context.Context, o Options, cmd Commander) (State, error) {
 		s.Active = e == nil && strings.TrimSpace(out) == "active"
 	}
 	return s, nil
+}
+
+func notLoaded(s string) bool {
+	s = strings.ToLower(s)
+	return strings.Contains(s, "no such process") || strings.Contains(s, "could not find service") || strings.Contains(s, "not found") || strings.Contains(s, "not loaded")
 }

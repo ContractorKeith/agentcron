@@ -138,3 +138,5 @@ Run `agentcron tui` in an interactive terminal to browse jobs, runs and live log
 For release preparation, see [Homebrew publishing](packaging/homebrew/README.md). Run `bash scripts/accept.sh` for the full local gate and `bash scripts/release-dry-run.sh v0.0.0-dryrun` to verify four temporary release archives without publishing.
 
 The recursion guard stops accidental and casual recursion; an agent with unrestricted shell can unset `AGENTCRON_RUN_ID`, so runner permissions remain the boundary.
+
+On Linux, run `loginctl enable-linger $USER` to keep the user service running after logout.
