@@ -15,6 +15,9 @@ import (
 type Run = store.Run
 
 func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, wait bool) (Run, error) {
+	if err := checkScheduling(opts); err != nil {
+		return Run{}, err
+	}
 	if opts.ReadOnly {
 		return Run{}, &Error{Usage, fmt.Errorf("now preview is read-only")}
 	}

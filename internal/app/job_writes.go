@@ -16,7 +16,7 @@ func AddJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool) (
 }
 
 func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, source string) (string, error) {
-	if err := refusePreview(opts); err != nil {
+	if err := checkScheduling(opts); err != nil {
 		return "", err
 	}
 	s, err := openJobs(ctx, opts, c, dry)
@@ -61,7 +61,7 @@ func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, s
 }
 
 func RemoveJob(ctx context.Context, opts Options, c clock.Clock, name string, dry bool) error {
-	if err := refusePreview(opts); err != nil {
+	if err := checkScheduling(opts); err != nil {
 		return err
 	}
 	s, err := openJobs(ctx, opts, c, dry)
@@ -87,7 +87,7 @@ func RemoveJob(ctx context.Context, opts Options, c clock.Clock, name string, dr
 }
 
 func PauseJob(ctx context.Context, opts Options, c clock.Clock, name string, paused bool) error {
-	if err := refusePreview(opts); err != nil {
+	if err := checkScheduling(opts); err != nil {
 		return err
 	}
 	s, err := openJobs(ctx, opts, c, false)

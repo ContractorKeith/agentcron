@@ -12,6 +12,10 @@ import (
 
 // CheckMCPWrite prevents a scheduled agent from recursively changing schedules.
 func CheckMCPWrite(opts Options) error {
+	return checkScheduling(opts)
+}
+
+func checkScheduling(opts Options) error {
 	if err := refusePreview(opts); err != nil {
 		return err
 	}
@@ -37,6 +41,9 @@ func CreateMCPJob(ctx context.Context, opts Options, c clock.Clock, j Job) (JobD
 
 // ApproveJob enables firing and resumes an agent-created job; repeated approval is harmless.
 func ApproveJob(ctx context.Context, opts Options, c clock.Clock, name string) error {
+	if os.Getenv("AGENTCRON_RUN_ID") != "" {
+		return &Error{Refused, fmt.Errorf("approval is human-only; cannot approve inside a run")}
+	}
 	if err := refusePreview(opts); err != nil {
 		return err
 	}

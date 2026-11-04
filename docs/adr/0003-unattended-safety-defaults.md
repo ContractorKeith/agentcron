@@ -18,3 +18,5 @@ inside a repository is `doctor`'s warning when the jobs directory is inside a jo
 repository; the narrower check during worktree creation refuses a new worktree that
 would contain the config directory, but does not detect tracked job files in the
 source repository.
+
+The recursion guard stops accidental and casual recursion; an agent with unrestricted shell can unset `AGENTCRON_RUN_ID`, so runner permissions remain the boundary.
