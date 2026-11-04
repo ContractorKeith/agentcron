@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -54,7 +55,12 @@ func Schedule(ctx context.Context, opts Options, c clock.Clock, loop bool, noWai
 		cmd := exec.Command(binary, "--config", cfg.ConfigDir, "--data-dir", cfg.DataDir, "tick")
 		cmd.Env = append(os.Environ(), "AGENTCRON_TICK_WORKER=1")
 		cmd.ExtraFiles = []*os.File{lock}
-		cmd.Stderr = log
+		workerLog, err := os.OpenFile(filepath.Join(cfg.DataDir, "daemon.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		defer workerLog.Close()
+		cmd.Stderr = workerLog
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 		if err = cmd.Start(); err != nil {
 			return err

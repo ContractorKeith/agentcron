@@ -25,9 +25,9 @@ func TestCancelUnknownReturnsUsage(t *testing.T) {
 }
 func TestQueuedWaitHonorsContext(t *testing.T) {
 	opts := isolated(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c := clock.Real{}
+	c := clock.NewFake(time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC))
 	if e := Init(ctx, opts); e != nil {
 		t.Fatal(e)
 	}
@@ -39,9 +39,12 @@ func TestQueuedWaitHonorsContext(t *testing.T) {
 	if _, e := AddJob(ctx, opts, c, j, false); e != nil {
 		t.Fatal(e)
 	}
-	_, e := RunJob(ctx, opts, c, j.Name, false, true)
-	if !errors.Is(e, context.DeadlineExceeded) {
-		t.Fatalf("%v", e)
+	done := make(chan error, 1)
+	go func() { _, err := RunJob(ctx, opts, c, j.Name, false, true); done <- err }()
+	c.BlockUntil(2)
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
 	}
 }
 func TestPruneContinuesPastUnexpectedPath(t *testing.T) {

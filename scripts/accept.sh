@@ -234,7 +234,8 @@ expect_state restart cancelled
 if pgrep -f "$scratch/bin/claude" >"$scratch/survivors"; then echo "surviving fake process"; exit 1; fi
 # no-wait keeps an inherited lock in a detached worker until the run ends.
 "$bin" run due >/dev/null
-FAKE_MODE=sleep FAKE_SLEEP=1s "$bin" tick --no-wait >"$scratch/no-wait-out" 2>"$scratch/no-wait-err"
+no_wait_output="$(FAKE_MODE=sleep FAKE_SLEEP=1s "$bin" tick --no-wait 2>&1)"
+ test -z "$no_wait_output"
 wait_running due
 "$bin" tick >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 4
 attempts=0

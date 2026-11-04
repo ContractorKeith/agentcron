@@ -109,6 +109,9 @@ func (e *Engine) Loop(ctx context.Context, hup <-chan struct{}) error {
 		delay := 30 * time.Second
 		states, err := e.DB.JobStates(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
 			return err
 		}
 		for _, s := range states {

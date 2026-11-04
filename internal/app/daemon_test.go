@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -106,5 +108,56 @@ func TestOneShotDoneAfterRetention(t *testing.T) {
 	detail, err := ShowJob(ctx, opts, c, j.Name)
 	if err != nil || detail.Status != "done" || len(detail.Runs) != 0 {
 		t.Fatal(detail, err)
+	}
+}
+
+func TestRestartRemovesClaimedPartialWorktree(t *testing.T) {
+	opts := isolated(t)
+	ctx := context.Background()
+	c := clock.NewFake(time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC))
+	if err := Init(ctx, opts); err != nil {
+		t.Fatal(err)
+	}
+	j := NewJob("partial")
+	j.Schedule = "every 1h"
+	j.Runner = "command"
+	j.Command = []string{"cat"}
+	j.Prompt = "hello"
+	if _, err := AddJob(ctx, opts, c, j, false); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(ctx, filepath.Join(opts.DataDir, "agentcron.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := store.NewRun(j.Name, "manual", c.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.CreateRun(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.ClaimRun(ctx, r.ID); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	partial := filepath.Join(opts.DataDir, "worktrees", j.Name, r.ID)
+	if err = os.MkdirAll(partial, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = Schedule(ctx, opts, c, false, false, nil, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(partial); !os.IsNotExist(err) {
+		t.Fatal("partial worktree survived", err)
+	}
+	db, err = store.Open(ctx, filepath.Join(opts.DataDir, "agentcron.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	got, err := db.GetRun(ctx, r.ID)
+	if err != nil || got.State != "unknown" || got.Kept {
+		t.Fatal(got, err)
 	}
 }
