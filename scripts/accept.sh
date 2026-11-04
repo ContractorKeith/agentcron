@@ -387,4 +387,5 @@ expect_state agent succeeded
 AGENTCRON_RUN_ID=x mcp_exchange "$create_call" --allow-write >"$scratch/mcp-guard"
 grep '"isError":true' "$scratch/mcp-guard" >/dev/null
 grep allow_agent_scheduling "$scratch/mcp-guard" >/dev/null
+bash scripts/readme-quickstart.sh "$bin" "$scratch/bin"
 echo "accept: ok"

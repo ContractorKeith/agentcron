@@ -8,7 +8,7 @@ knowledge base. "Done" for v1 is every row marked v1 in `docs/PLAN.md` §3 passi
 `scripts/accept.sh` on macOS and Linux.
 
 ## Status
-M6 — TUI: done (#7).
+v0.1.0 release candidate; skeptic-review pending
 
 ## Commands
 ```bash

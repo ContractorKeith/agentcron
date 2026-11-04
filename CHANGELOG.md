@@ -1,0 +1,11 @@
+# Changelog
+
+## v0.1.0 — unreleased
+
+- M0: Go CLI, XDG configuration, SQLite ledger, fake runners and macOS/Linux acceptance CI.
+- M1: TOML job files, validation, job management and timezone-aware schedules.
+- M2: Claude, Codex and command runners, per-run worktrees, logs, timeouts, cancellation and expectation checks.
+- M3: Daemon, queue claims, concurrency limits, catch-up, crash reconciliation, retention and systemd/launchd services.
+- M4: Optional per-job memory notes through mdkb, MCP injection and memory diagnostics.
+- M5: Stdio MCP read/write tools, human approval for proposed jobs and recursion guard.
+- M6: Terminal UI for jobs, runs, live logs, run-now, pause/resume and approval.
