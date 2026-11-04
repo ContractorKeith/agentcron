@@ -228,6 +228,8 @@ only add one line to the cobra root).
 
 ## 8. Acceptance
 
+Release verification: `bash scripts/release-dry-run.sh v0.0.0-dryrun` builds four temporary archives, verifies embedded versions and writes checksums without tagging or publishing.
+
 Tests and accept.sh preview time with the hidden read-only flag `--now <RFC3339>`; write commands refuse it.
 
 `scripts/accept.sh` is the acceptance. It builds, runs the gate (race tests, gofmt, vet,
