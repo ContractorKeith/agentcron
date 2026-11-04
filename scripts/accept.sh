@@ -168,7 +168,7 @@ test "$("$bin" worktrees --json)" = '[]'
 test -z "$(git -C "$scratch/repo" branch --list 'agentcron/*')"
 "$bin" run success >"$scratch/queued-id"
 "$bin" runs success --limit 1 --json | sed -E \
-  -e 's/r_[0-9]{8}T[0-9]{6}Z_[A-Z2-7]{4}/RUN/g' \
+  -e 's/r_[0-9]{8}T[0-9]{6}Z_[A-Z2-7]{8}/RUN/g' \
   -e 's/"scheduled_for":"[^"]*"/"scheduled_for":"TIME"/g' | diff - testdata/golden/runs.json
 "$bin" show success --json | grep '"state":"succeeded"' >/dev/null
 "$bin" ls --json | grep '"last_state":"queued"' >/dev/null

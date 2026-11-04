@@ -6,16 +6,6 @@ import (
 	"time"
 )
 
-// EnqueueFire uses the partial unique index, retaining independent manual runs.
-func (s *Store) EnqueueFire(ctx context.Context, r Run) error {
-	return s.WithImmediateTx(ctx, func(tx *ImmediateTx) error {
-		_, e := tx.Exec(ctx, `INSERT INTO runs(id,job,trigger,scheduled_for,state)
- SELECT ?,?,?,?,'queued' WHERE NOT EXISTS
- (SELECT 1 FROM runs WHERE job=? AND scheduled_for=? AND trigger IN ('schedule','catchup'))
- ON CONFLICT DO NOTHING`, r.ID, r.Job, r.Trigger, r.ScheduledFor.UTC().Format(time.RFC3339Nano), r.Job, r.ScheduledFor.UTC().Format(time.RFC3339Nano))
-		return e
-	})
-}
 func (s *Store) ClaimOwned(ctx context.Context, id string, at time.Time, ownerStart time.Time) error {
 	return s.transition(ctx, id, "queued", "state='claimed',owner_pid=?,started_at=?,owner_start=?", os.Getpid(), at.UTC().Format(time.RFC3339Nano), ownerStart.UTC().Format(time.RFC3339Nano))
 }

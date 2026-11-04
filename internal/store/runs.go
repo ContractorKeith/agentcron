@@ -29,11 +29,11 @@ type Run struct {
 }
 
 func NewRun(job, trigger string, at time.Time) (Run, error) {
-	var b [3]byte
+	var b [5]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return Run{}, err
 	}
-	return Run{ID: "r_" + at.UTC().Format("20060102T150405Z") + "_" + base32.StdEncoding.EncodeToString(b[:])[:4], Job: job, Trigger: trigger, ScheduledFor: at.UTC(), State: "queued"}, nil
+	return Run{ID: "r_" + at.UTC().Format("20060102T150405Z") + "_" + base32.StdEncoding.EncodeToString(b[:]), Job: job, Trigger: trigger, ScheduledFor: at.UTC(), State: "queued"}, nil
 }
 func Terminal(state string) bool {
 	switch state {

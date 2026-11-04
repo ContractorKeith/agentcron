@@ -30,12 +30,14 @@ func (e *Engine) Enqueue(ctx context.Context, defs map[string]jobs.Job, states m
 			if err != nil {
 				return err
 			}
-			if err = e.DB.EnqueueFire(ctx, r); err != nil {
+			var inserted bool
+			r, inserted, err = e.DB.EnqueueFire(ctx, r)
+			if err != nil {
 				return err
 			}
 			st.Fired = true
-			if inserted, err := e.DB.GetRun(ctx, r.ID); err == nil {
-				e.log(inserted)
+			if inserted {
+				e.log(r)
 			}
 			return nil
 		}
