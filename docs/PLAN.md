@@ -177,7 +177,7 @@ agentcron run <name> [--now] [--wait]           enqueue (daemon runs it) or run 
 agentcron runs [<name>] [--state S] [--limit N] [--json]
 agentcron logs <run-id> [--stderr] [--follow]
 agentcron cancel <run-id>
-agentcron worktrees [--json] | prune [--dry-run]
+agentcron worktrees [--json] | prune [--dry-run] [--force]
 agentcron memory <name>                         print the job's memory note via mdkb
 agentcron daemon                                foreground scheduler
 agentcron tick                                  one scheduling pass, then exit

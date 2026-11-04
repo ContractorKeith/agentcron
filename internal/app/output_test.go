@@ -106,13 +106,13 @@ func TestPruneAfterRemovingJob(t *testing.T) {
 	if e = RemoveJob(ctx, opts, c, j.Name, false); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = Prune(ctx, opts, c, true); e != nil {
+	if _, e = Prune(ctx, opts, c, true, false); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = os.Stat(r.Worktree); e != nil {
 		t.Fatal("dry run removed scratch")
 	}
-	if _, e = Prune(ctx, opts, c, false); e != nil {
+	if _, e = Prune(ctx, opts, c, false, true); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = os.Stat(r.Worktree); !os.IsNotExist(e) {

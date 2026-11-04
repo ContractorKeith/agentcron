@@ -164,7 +164,7 @@ FAKE_MODE=dirty "$bin" run dirty --now >/dev/null
 "$bin" worktrees --json | grep '"kept":true' >/dev/null
 "$bin" prune --dry-run >/dev/null
 "$bin" worktrees --json | grep '"kept":true' >/dev/null
-"$bin" prune >/dev/null
+"$bin" prune --force >/dev/null
 test "$("$bin" worktrees --json)" = '[]'
 test -z "$(git -C "$scratch/repo" branch --list 'agentcron/*')"
 "$bin" run success >"$scratch/queued-id"

@@ -142,3 +142,5 @@ The recursion guard stops accidental and casual recursion; an agent with unrestr
 On Linux, run `loginctl enable-linger $USER` to keep the user service running after logout.
 
 Service install captures and prints `PATH` and, when set, `MDKB_ROOT`; reinstall after changing either.
+
+`prune` keeps dirty or ahead worktrees and lists the files/commits `--force` would destroy; `prune --dry-run` lists all candidates.

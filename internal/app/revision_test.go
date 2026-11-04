@@ -86,7 +86,7 @@ func TestPruneContinuesPastUnexpectedPath(t *testing.T) {
 			valid = r
 		}
 	}
-	report, e := Prune(ctx, opts, c, false)
+	report, e := Prune(ctx, opts, c, false, true)
 	if _, statErr := os.Stat(valid.Worktree); !os.IsNotExist(statErr) {
 		t.Fatalf("valid worktree not pruned: %v report=%v err=%v", statErr, report, e)
 	}

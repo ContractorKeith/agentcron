@@ -96,14 +96,15 @@ func runCommands(root *cobra.Command, opts *app.Options, output outputFunc) {
 		}
 		return printJSON(cmd, r)
 	}})
-	var dry bool
+	var dry, force bool
 	prune := &cobra.Command{Use: "prune", Short: "Remove kept directories of terminal runs", Args: none, RunE: func(cmd *cobra.Command, _ []string) error {
-		r, e := app.Prune(cmd.Context(), *opts, current, dry)
+		r, e := app.Prune(cmd.Context(), *opts, current, dry, force)
 		if e != nil {
 			return e
 		}
 		return printJSON(cmd, r)
 	}}
+	prune.Flags().BoolVar(&force, "force", false, "Destroy dirty files and commits unique to run branches")
 	prune.Flags().BoolVar(&dry, "dry-run", false, "Preview removals")
 	root.AddCommand(prune)
 }
