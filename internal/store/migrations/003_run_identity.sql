@@ -1,0 +1,2 @@
+ALTER TABLE runs ADD COLUMN owner_pid INTEGER;
+ALTER TABLE runs ADD COLUMN proc_start TEXT;

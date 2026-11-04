@@ -4,11 +4,12 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
 )
 
 type Store struct{ db *sql.DB }
@@ -47,7 +48,11 @@ func open(ctx context.Context, path string, create bool) (*Store, error) {
 	}
 	if err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("open ledger: %w", err)
+		var sqliteErr *sqlite.Error
+		if errors.As(err, &sqliteErr) && (sqliteErr.Code()&255 == 11 || sqliteErr.Code()&255 == 26) {
+			return nil, fmt.Errorf("open ledger %s: %w; move it aside and run agentcron init", absolute, err)
+		}
+		return nil, fmt.Errorf("open ledger %s: %w", absolute, err)
 	}
 	return s, nil
 }

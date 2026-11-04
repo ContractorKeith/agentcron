@@ -16,10 +16,11 @@ type Job = jobs.Job
 func NewJob(name string) Job { return jobs.Defaults(name) }
 
 type JobView struct {
-	Name  string          `json:"name"`
-	Job   *Job            `json:"job,omitempty"`
-	State *store.JobState `json:"state,omitempty"`
-	Error string          `json:"error,omitempty"`
+	Name      string          `json:"name"`
+	Job       *Job            `json:"job,omitempty"`
+	State     *store.JobState `json:"state,omitempty"`
+	Error     string          `json:"error,omitempty"`
+	LastState string          `json:"last_state,omitempty"`
 }
 
 func jobFires(j Job, anchor, after time.Time, count int) []time.Time {
@@ -68,7 +69,7 @@ type JobDetail struct {
 	Job   Job            `json:"job"`
 	State store.JobState `json:"state"`
 	Next  []time.Time    `json:"next"`
-	Runs  []any          `json:"runs"`
+	Runs  []store.Run    `json:"runs"`
 }
 
 func ShowJob(ctx context.Context, opts Options, c clock.Clock, name string) (JobDetail, error) {
@@ -81,7 +82,11 @@ func ShowJob(ctx context.Context, opts Options, c clock.Clock, name string) (Job
 	if err != nil {
 		return JobDetail{}, err
 	}
-	return JobDetail{*view.Job, *view.State, jobFires(*view.Job, view.State.AnchorAt, s.now, 5), []any{}}, nil
+	runs, err := s.db.ListRuns(ctx, name, "", 5)
+	if err != nil {
+		return JobDetail{}, err
+	}
+	return JobDetail{*view.Job, *view.State, jobFires(*view.Job, view.State.AnchorAt, s.now, 5), runs}, nil
 }
 
 func (s *jobSession) persist(ctx context.Context, state store.JobState, enabled bool) error {

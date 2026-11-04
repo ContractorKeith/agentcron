@@ -44,7 +44,9 @@ func ValidateName(name string) error {
 	return nil
 }
 
-func (j *Job) Validate(dir string) error {
+func (j *Job) Validate(dir string) error { return j.validate(dir, true) }
+
+func (j *Job) validate(dir string, checkPrompt bool) error {
 	if err := ValidateName(j.Name); err != nil {
 		return err
 	}
@@ -64,7 +66,7 @@ func (j *Job) Validate(dir string) error {
 	} else if len(j.Command) > 0 {
 		return fmt.Errorf("command: only valid for runner command")
 	}
-	if j.PromptFile != "" {
+	if j.PromptFile != "" && checkPrompt {
 		if filepath.IsAbs(j.PromptFile) {
 			return fmt.Errorf("prompt_file: must be relative to jobs directory")
 		}
@@ -120,6 +122,10 @@ func (j *Job) Validate(dir string) error {
 }
 
 func Parse(dir, name string, data []byte) (Job, error) {
+	return parse(dir, name, data, true)
+}
+
+func parse(dir, name string, data []byte, checkPrompt bool) (Job, error) {
 	j := Defaults(name)
 	meta, err := toml.Decode(string(data), &j)
 	if err != nil {
@@ -128,6 +134,6 @@ func Parse(dir, name string, data []byte) (Job, error) {
 	if unknown := meta.Undecoded(); len(unknown) > 0 {
 		return j, fmt.Errorf("unknown field: %s", unknown[0])
 	}
-	err = j.Validate(dir)
+	err = j.validate(dir, checkPrompt)
 	return j, err
 }
