@@ -257,4 +257,34 @@ done
 "$bin" tick >"$scratch/tick-out" 2>"$scratch/tick-err"
 expect_state restart unknown
 pkill -f "$scratch/bin/claude" 2>/dev/null || :
+# Reconcile must drain a remaining group even after its leader is reaped.
+process_live() {
+  process_state="$(ps -p "$1" -o stat= 2>/dev/null)" || return 1
+  case "$process_state" in *Z*) return 1 ;; *) return 0 ;; esac
+}
+for mode in background spawn-child; do
+  "$bin" run restart >/dev/null
+  FAKE_MODE="$mode" FAKE_CHILD_PID="$scratch/orphan-child" FAKE_SLEEP=90s "$bin" daemon >"$scratch/daemon-out" 2>"$scratch/daemon-err" &
+  daemon_owner=$!
+  wait_running restart
+  attempts=0
+  until test -s "$scratch/orphan-child"; do
+    attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
+  done
+  child_pid="$(cat "$scratch/orphan-child")"
+  leader_pid="$("$bin" runs restart --state running --limit 1 --json | sed -E 's/.*"pid":([0-9]+).*/\1/')"
+  kill -KILL "$daemon_owner"; wait "$daemon_owner" 2>/dev/null || :; daemon_owner=
+  kill -KILL "$leader_pid" 2>/dev/null || :
+  attempts=0
+  while ps -p "$leader_pid" >/dev/null 2>&1; do
+    attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
+  done
+  "$bin" tick >"$scratch/tick-out" 2>"$scratch/tick-err"
+  expect_state restart unknown
+  attempts=0
+  while process_live "$child_pid"; do
+    attempts=$((attempts+1)); test "$attempts" -lt 100; sleep 0.05
+  done
+  rm "$scratch/orphan-child"
+done
 echo "accept: ok"

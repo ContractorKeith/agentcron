@@ -7,24 +7,29 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/runner"
 )
 
 // Process seams let restart rules use fake identities without starting processes.
 type Processes struct {
-	Alive func(int) bool
-	Start func(int) (time.Time, error)
-	Kill  func(int) error
+	GroupExists func(int) bool
+	Alive       func(int) bool
+	Start       func(int) (time.Time, error)
+	Kill        func(int) error
 }
 
-func systemProcesses() Processes {
+func systemProcesses(c clock.Clock) Processes {
 	return Processes{
-		Alive: func(pid int) bool { return syscall.Kill(pid, 0) != syscall.ESRCH },
-		Start: runner.ProcessStart,
-		Kill:  func(pid int) error { return syscall.Kill(-pid, syscall.SIGKILL) },
+		Alive:       func(pid int) bool { return syscall.Kill(pid, 0) != syscall.ESRCH },
+		Start:       runner.ProcessStart,
+		Kill:        func(pid int) error { runner.TeardownGroup(pid, c, 10*time.Second); return nil },
+		GroupExists: func(pid int) bool { return syscall.Kill(-pid, 0) == nil },
 	}
 }
-func (e *Engine) Reconcile(ctx context.Context) error { return e.reconcile(ctx, systemProcesses()) }
+func (e *Engine) Reconcile(ctx context.Context) error {
+	return e.reconcile(ctx, systemProcesses(e.Clock))
+}
 func (e *Engine) reconcile(ctx context.Context, p Processes) error {
 	runs, err := e.DB.ListRuns(ctx, "", "", -1)
 	if err != nil {
@@ -54,7 +59,8 @@ func (e *Engine) reconcile(ctx context.Context, p Processes) error {
 			continue
 		}
 		// Never adopt an orphan: tear down only a matching process identity.
-		if live {
+		remainingGroup := r.PID != nil && !p.Alive(*r.PID) && p.GroupExists != nil && p.GroupExists(*r.PID)
+		if live || remainingGroup {
 			if err := p.Kill(*r.PID); err != nil && err != syscall.ESRCH {
 				return err
 			}
