@@ -8,7 +8,7 @@ knowledge base. "Done" for v1 is every row marked v1 in `docs/PLAN.md` §3 passi
 `scripts/accept.sh` on macOS and Linux.
 
 ## Status
-Planned — 2026-11-04: plan, glossary and ADRs written; no code. Next: M0 (#1).
+M0 — scaffold, store, fakes and CI: done (#1).
 
 ## Commands
 ```bash
