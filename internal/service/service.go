@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/ContractorKeith/agentcron/internal/clock"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +30,7 @@ type Options struct {
 	OS, Home, Binary, Path, ConfigDir, DataDir string
 	MDKBRoot                                   string
 	UID                                        int
+	Clock                                      clock.Clock
 }
 type Definition struct {
 	Path        string            `json:"path"`
@@ -69,7 +71,7 @@ func (o Options) args() []string {
 func (o Options) Commands(action string) [][]string {
 	if o.OS == "darwin" {
 		if action == "install" {
-			return [][]string{{"launchctl", "bootout", o.domain() + "/com.contractorkeith.agentcron"}, {"launchctl", "bootstrap", o.domain(), o.file()}}
+			return [][]string{{"launchctl", "bootout", o.domain() + "/com.contractorkeith.agentcron"}, {"launchctl", "print", o.domain() + "/com.contractorkeith.agentcron"}, {"launchctl", "bootstrap", o.domain(), o.file()}}
 		}
 		return [][]string{{"launchctl", "bootout", o.domain() + "/com.contractorkeith.agentcron"}}
 	}
@@ -86,6 +88,9 @@ func Apply(ctx context.Context, o Options, action string, dry bool, cmd Commande
 	d.Commands = o.Commands(action)
 	if dry {
 		return d, nil
+	}
+	if action == "install" && o.OS == "darwin" {
+		return installLaunchd(ctx, o, d, cmd)
 	}
 	if action == "install" {
 		if err = os.MkdirAll(filepath.Dir(d.Path), 0700); err != nil {

@@ -20,6 +20,9 @@ func (f *lifecycleCommander) Run(_ context.Context, name string, args ...string)
 	if strings.Contains(s, "bootout") && f.missing {
 		return "Boot-out failed: 3: No such process", errors.New("not loaded")
 	}
+	if strings.Contains(s, "launchctl print") {
+		return "Could not find service", errors.New("not found")
+	}
 	if strings.Contains(s, "is-active") {
 		return "active", nil
 	}
