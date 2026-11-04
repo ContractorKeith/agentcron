@@ -27,7 +27,9 @@ func TestTermTrapKeepsRequestedOutcome(t *testing.T) {
 					}
 					select {
 					case <-deadline:
-						t.Fatal("trap not ready")
+						t.Error("trap not ready")
+						cancel()
+						return
 					case <-x.Clock.After(time.Millisecond):
 					}
 				}
