@@ -20,6 +20,9 @@ func Read(dir, name string) (Job, error) {
 	if err := ValidateName(name); err != nil {
 		return Job{}, err
 	}
+	if err := requireExact(dir, name); err != nil {
+		return Job{}, err
+	}
 	data, err := os.ReadFile(filepath.Join(dir, name+".toml"))
 	if err != nil {
 		return Job{}, err
@@ -31,6 +34,9 @@ func Read(dir, name string) (Job, error) {
 // receive a blocked_config ledger row rather than disappearing as usage errors.
 func ReadForRun(dir, name string) (Job, error) {
 	if err := ValidateName(name); err != nil {
+		return Job{}, err
+	}
+	if err := requireExact(dir, name); err != nil {
 		return Job{}, err
 	}
 	data, err := os.ReadFile(filepath.Join(dir, name+".toml"))
@@ -83,11 +89,14 @@ func Exists(dir, name string) (bool, error) {
 	if err := ValidateName(name); err != nil {
 		return false, err
 	}
-	_, err := os.Lstat(filepath.Join(dir, name+".toml"))
+	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	return exactEntry(entries, name+".toml"), nil
 }
 
 // Write uses a same-directory temporary file; readers only see complete definitions.
@@ -128,6 +137,9 @@ func publish(dir string, j Job, commit func(string, string) error) error {
 
 func Remove(dir, name string) error {
 	if err := ValidateName(name); err != nil {
+		return err
+	}
+	if err := requireExact(dir, name); err != nil {
 		return err
 	}
 	return os.Remove(filepath.Join(dir, name+".toml"))
