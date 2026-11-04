@@ -85,6 +85,9 @@ func TestActions(t *testing.T) {
 			m, f := fixture()
 			m.api = approving{f}
 			m, cmd := press(m, tc.key)
+			if tc.key == "a" {
+				m, cmd = press(m, "y")
+			}
 			if !m.busy {
 				t.Fatal("action did not become busy")
 			}

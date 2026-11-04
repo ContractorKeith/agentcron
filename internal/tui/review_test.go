@@ -25,12 +25,14 @@ func TestSuccessfulRefreshClearsTransientError(t *testing.T) {
 
 func TestApproveSelectedUnapprovedJobRefreshesStatus(t *testing.T) {
 	m, f := fixture()
-	f.jobs = append(f.jobs, app.JobView{Name: "proposed", Status: "unapproved"})
+	job := app.NewJob("proposed")
+	f.jobs = append(f.jobs, app.JobView{Name: "proposed", Job: &job, Status: "unapproved"})
 	m = deliver(m, m.load())
 	m.api = approving{f}
 	m, cmd := press(m, "j")
 	m = deliver(m, cmd)
-	m, cmd = press(m, "a")
+	m, _ = press(m, "a")
+	m, cmd = press(m, "y")
 	next, refresh := m.Update(cmd())
 	m = next.(model)
 	if f.calls[len(f.calls)-1] != "approve proposed" {
