@@ -2,12 +2,17 @@ package daemon
 
 import (
 	"context"
+	"github.com/ContractorKeith/agentcron/internal/runner"
 
 	"github.com/ContractorKeith/agentcron/internal/jobs"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
 func (e *Engine) Claim(ctx context.Context, defs map[string]jobs.Job, states map[string]store.JobState) ([]store.Run, error) {
+	ownerStart, err := runner.OwnerStart()
+	if err != nil {
+		return nil, err
+	}
 	all, err := e.DB.ListRuns(ctx, "", "", -1)
 	if err != nil {
 		return nil, err
@@ -42,7 +47,7 @@ func (e *Engine) Claim(ctx context.Context, defs map[string]jobs.Job, states map
 		if count >= e.Concurrency {
 			continue
 		}
-		if err := e.DB.ClaimOwned(ctx, r.ID, e.Clock.Now()); err != nil {
+		if err := e.DB.ClaimOwned(ctx, r.ID, e.Clock.Now(), ownerStart); err != nil {
 			return nil, err
 		}
 		r.State = "claimed"

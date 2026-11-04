@@ -42,7 +42,7 @@ func TestMigrateAndReopen(t *testing.T) {
 		}
 		for table, want := range map[string][]string{
 			"job_state": {"name", "paused", "approved", "next_fire", "last_run_id", "updated_at", "anchor_at", "orphaned", "schedule_key", "fired"},
-			"runs":      {"id", "job", "trigger", "scheduled_for", "state", "pid", "exit_code", "started_at", "ended_at", "worktree", "kept", "error", "owner_pid", "proc_start"},
+			"runs":      {"id", "job", "trigger", "scheduled_for", "state", "pid", "exit_code", "started_at", "ended_at", "worktree", "kept", "error", "owner_pid", "proc_start", "owner_start"},
 		} {
 			rows, err := s.db.Query("SELECT * FROM " + table + " LIMIT 0")
 			if err != nil {

@@ -71,7 +71,14 @@ func terminate(pid int, done <-chan error, c clock.Clock, grace time.Duration) e
 // has second precision. Record the observed process start in proc_start and require
 // equality before signalling: a later recycled PID must also be refused.
 func ProcessStart(pid int) (time.Time, error) {
-	cmd := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "lstart=")
+	return processStart(pid, "ps")
+}
+
+// OwnerStart uses the OS ps binary even when a job has a restricted PATH.
+func OwnerStart() (time.Time, error) { return processStart(os.Getpid(), "/bin/ps") }
+
+func processStart(pid int, binary string) (time.Time, error) {
+	cmd := exec.Command(binary, "-p", strconv.Itoa(pid), "-o", "lstart=")
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "TZ=UTC")
 	out, err := cmd.Output()
 	if err != nil {

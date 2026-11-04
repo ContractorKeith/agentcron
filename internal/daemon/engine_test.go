@@ -152,7 +152,7 @@ func TestStartClaimedRun(t *testing.T) {
 	r, err := store.NewRun(j.Name, "manual", e.Clock.Now())
 	check(t, err)
 	check(t, e.DB.CreateRun(ctx, r))
-	check(t, e.DB.ClaimOwned(ctx, r.ID, e.Clock.Now()))
+	check(t, e.DB.ClaimOwned(ctx, r.ID, e.Clock.Now(), e.Clock.Now()))
 	r.State = "claimed"
 	observed := make(chan store.Run, 1)
 	e.Runner = runner.Runner{DB: e.DB, Clock: e.Clock, DataDir: e.DataDir, JobsDir: t.TempDir(), Observe: func(r store.Run) { observed <- r }}

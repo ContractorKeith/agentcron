@@ -68,8 +68,13 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	if err != nil {
 		return r, err
 	}
+	ownerStart, err := OwnerStart()
+	if err != nil {
+		return r, err
+	}
+	r.OwnerStart = &ownerStart
 	if r.State != "claimed" {
-		if err = x.DB.ClaimOwned(ctx, r.ID, x.Clock.Now()); err != nil {
+		if err = x.DB.ClaimOwned(ctx, r.ID, x.Clock.Now(), ownerStart); err != nil {
 			return r, err
 		}
 	}

@@ -16,8 +16,8 @@ func (s *Store) EnqueueFire(ctx context.Context, r Run) error {
 		return e
 	})
 }
-func (s *Store) ClaimOwned(ctx context.Context, id string, at time.Time) error {
-	return s.transition(ctx, id, "queued", "state='claimed',owner_pid=?,started_at=?", os.Getpid(), at.UTC().Format(time.RFC3339Nano))
+func (s *Store) ClaimOwned(ctx context.Context, id string, at time.Time, ownerStart time.Time) error {
+	return s.transition(ctx, id, "queued", "state='claimed',owner_pid=?,started_at=?,owner_start=?", os.Getpid(), at.UTC().Format(time.RFC3339Nano), ownerStart.UTC().Format(time.RFC3339Nano))
 }
 func (s *Store) Unknown(ctx context.Context, r Run) error {
 	from := r.State

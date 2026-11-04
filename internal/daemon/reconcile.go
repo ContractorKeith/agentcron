@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -21,17 +20,8 @@ type Processes struct {
 func systemProcesses() Processes {
 	return Processes{
 		Alive: func(pid int) bool { return syscall.Kill(pid, 0) != syscall.ESRCH },
-		Start: func(pid int) (time.Time, error) {
-			pgid, err := syscall.Getpgid(pid)
-			if err != nil {
-				return time.Time{}, err
-			}
-			if pgid != pid {
-				return time.Time{}, fmt.Errorf("process group identity changed")
-			}
-			return runner.ProcessStart(pid)
-		},
-		Kill: func(pid int) error { return syscall.Kill(-pid, syscall.SIGKILL) },
+		Start: runner.ProcessStart,
+		Kill:  func(pid int) error { return syscall.Kill(-pid, syscall.SIGKILL) },
 	}
 }
 func (e *Engine) Reconcile(ctx context.Context) error { return e.reconcile(ctx, systemProcesses()) }
@@ -50,7 +40,11 @@ func (e *Engine) reconcile(ctx context.Context, p Processes) error {
 		if owned {
 			continue
 		}
-		ownerLive := r.OwnerPID != nil && p.Alive(*r.OwnerPID)
+		ownerLive := false
+		if r.OwnerPID != nil && r.OwnerStart != nil && p.Alive(*r.OwnerPID) {
+			start, err := p.Start(*r.OwnerPID)
+			ownerLive = err == nil && start.Equal(*r.OwnerStart)
+		}
 		live := false
 		if r.PID != nil && p.Alive(*r.PID) {
 			start, err := p.Start(*r.PID)

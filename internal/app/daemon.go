@@ -30,14 +30,11 @@ func Schedule(ctx context.Context, opts Options, c clock.Clock, loop bool, noWai
 	if _, err = os.Stat(cfg.Database()); os.IsNotExist(err) {
 		return &Error{NotInitialized, fmt.Errorf("not initialised; run agentcron init")}
 	}
-	var lock *os.File
+	var lock *daemon.Lease
 	if os.Getenv("AGENTCRON_TICK_WORKER") == "1" {
-		lock = os.NewFile(3, "daemon.lock")
-		// Keep the transferred lock in this owner, never in its runner children.
-		syscall.CloseOnExec(int(lock.Fd()))
-		if err = lock.Truncate(0); err == nil {
-			_, err = lock.WriteAt([]byte(fmt.Sprintln(os.Getpid())), 0)
-		}
+		f := os.NewFile(3, "daemon.lock")
+		syscall.CloseOnExec(int(f.Fd()))
+		lock, err = daemon.AdoptLock(f)
 	} else {
 		lock, err = daemon.Lock(cfg.DataDir)
 	}
@@ -56,7 +53,7 @@ func Schedule(ctx context.Context, opts Options, c clock.Clock, loop bool, noWai
 		}
 		cmd := exec.Command(binary, "--config", cfg.ConfigDir, "--data-dir", cfg.DataDir, "tick")
 		cmd.Env = append(os.Environ(), "AGENTCRON_TICK_WORKER=1")
-		cmd.ExtraFiles = []*os.File{lock}
+		cmd.ExtraFiles = []*os.File{lock.File}
 		workerLog, err := os.OpenFile(filepath.Join(cfg.DataDir, "daemon.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
@@ -67,6 +64,7 @@ func Schedule(ctx context.Context, opts Options, c clock.Clock, loop bool, noWai
 		if err = cmd.Start(); err != nil {
 			return err
 		}
+		lock.Transfer()
 		return cmd.Process.Release()
 	}
 

@@ -18,10 +18,11 @@ func TestRestartRules(t *testing.T) {
 			r, err := store.NewRun("job", "manual", now)
 			check(t, err)
 			check(t, e.DB.CreateRun(ctx, r))
-			check(t, e.DB.ClaimOwned(ctx, r.ID, now))
+			check(t, e.DB.ClaimOwned(ctx, r.ID, now, now))
 			pid, owner := 123, 456
 			r.PID = &pid
 			r.OwnerPID = &owner
+			r.OwnerStart = &now
 			r.StartedAt = &now
 			r.ProcStart = &now
 			if kind != "claimed" {
