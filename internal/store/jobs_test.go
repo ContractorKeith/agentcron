@@ -50,7 +50,7 @@ func TestUpgradeMigrationOne(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Rebuild a genuine v1 database, including an existing state row.
-	if _, err = s.db.Exec("DROP TABLE job_state; ALTER TABLE runs DROP COLUMN owner_pid; ALTER TABLE runs DROP COLUMN proc_start; DELETE FROM schema_version WHERE version>=2"); err != nil {
+	if _, err = s.db.Exec("DROP TABLE job_state; ALTER TABLE runs DROP COLUMN owner_pid; ALTER TABLE runs DROP COLUMN proc_start; ALTER TABLE runs DROP COLUMN owner_start; DELETE FROM schema_version WHERE version>=2"); err != nil {
 		t.Fatal(err)
 	}
 	initial, err := os.ReadFile("migrations/001_initial.sql")

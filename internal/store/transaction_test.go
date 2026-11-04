@@ -98,3 +98,30 @@ func TestCancelledTransactionReleasesPooledConnection(t *testing.T) {
 		t.Fatalf("row %q: %v", name, err)
 	}
 }
+
+func TestDefinitionSyncDoesNotRewindCursor(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(ctx, scratchDB(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	at := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	next := at.Add(time.Minute)
+	stale := JobState{Name: "job", Approved: true, ScheduleKey: "every 1m|UTC", NextFire: &at, AnchorAt: at, UpdatedAt: at}
+	if err = s.PutJobState(ctx, stale); err != nil {
+		t.Fatal(err)
+	}
+	current := stale
+	current.NextFire = &next
+	if err = s.AdvanceCursor(ctx, current); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SyncDefinition(ctx, stale); err != nil {
+		t.Fatal(err)
+	}
+	states, err := s.JobStates(ctx)
+	if err != nil || !states["job"].NextFire.Equal(next) {
+		t.Fatal(states, err)
+	}
+}

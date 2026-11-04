@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
 	"github.com/ContractorKeith/agentcron/internal/jobs"
@@ -14,9 +15,6 @@ import (
 type Run = store.Run
 
 func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, wait bool) (Run, error) {
-	if wait && !now {
-		return Run{}, &Error{Usage, fmt.Errorf("the daemon executes queued runs; use --now to run inline")}
-	}
 	if opts.ReadOnly {
 		return Run{}, &Error{Usage, fmt.Errorf("now preview is read-only")}
 	}
@@ -47,6 +45,9 @@ func RunJob(ctx context.Context, opts Options, c clock.Clock, name string, now, 
 	}
 	if now {
 		r, err = (runner.Runner{DB: s.db, Clock: c, DataDir: s.config.DataDir, JobsDir: s.config.JobsDir(), ConfigDir: s.config.ConfigDir}).Run(ctx, j, r, approved)
+	}
+	if wait && !now && err == nil {
+		r, err = waitQueued(ctx, s.db, c, j, r)
 	}
 	if err != nil {
 		return r, err
@@ -85,4 +86,25 @@ func CancelRun(ctx context.Context, opts Options, c clock.Clock, id string) erro
 		return &Error{Usage, err}
 	}
 	return err
+}
+
+func waitQueued(ctx context.Context, db *store.Store, c clock.Clock, j jobs.Job, r Run) (Run, error) {
+	timeout, _ := time.ParseDuration(j.Timeout)
+	deadline := c.After(timeout + 10*time.Second)
+	for {
+		current, err := db.GetRun(ctx, r.ID)
+		if err != nil {
+			return r, err
+		}
+		if store.Terminal(current.State) {
+			return current, nil
+		}
+		select {
+		case <-ctx.Done():
+			return current, ctx.Err()
+		case <-deadline:
+			return current, fmt.Errorf("waiting for run %s timed out", r.ID)
+		case <-c.After(50 * time.Millisecond):
+		}
+	}
 }

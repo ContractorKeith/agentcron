@@ -67,3 +67,15 @@ func TestIntervalAnchorAndPastAt(t *testing.T) {
 		}
 	}
 }
+
+func TestSecondPrecision(t *testing.T) {
+	anchor := instant("2026-11-04T12:00:00Z").Add(987 * time.Millisecond)
+	s, err := Parse("every 1m")
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, ok := s.WithAnchor(anchor).Next(anchor, time.UTC)
+	if !ok || next.Nanosecond() != 0 || !next.Equal(anchor.Truncate(time.Second).Add(time.Minute)) {
+		t.Fatal(next)
+	}
+}

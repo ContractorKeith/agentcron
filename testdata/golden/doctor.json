@@ -1,1 +1,1 @@
-{"config_dir":true,"data_dir":true,"schema_version":3,"git":true,"claude":true,"codex":true,"mdkb":true}
+{"service":{"installed":false,"active":false},"daemon_pid":0,"config_dir":true,"data_dir":true,"schema_version":4,"git":true,"claude":true,"codex":true,"mdkb":true}

@@ -76,9 +76,9 @@ func newRoot() *cobra.Command {
 				return err
 			}
 			if outErr := output(cmd, health,
-				"Config: %s (%t)\nData: %s (%t)\nSchema version: %d\ngit: %t\nclaude: %t\ncodex: %t\nmdkb: %t\n",
+				"Config: %s (%t)\nData: %s (%t)\nSchema version: %d\ngit: %t\nclaude: %t\ncodex: %t\nmdkb: %t\nService installed: %t active: %t\nDaemon pid: %d\n",
 				health.ConfigPath, health.ConfigDir, health.DataPath, health.DataDir, health.SchemaVersion,
-				health.Git, health.Claude, health.Codex, health.MDKB); outErr != nil {
+				health.Git, health.Claude, health.Codex, health.MDKB, health.Service.Installed, health.Service.Active, health.DaemonPID); outErr != nil {
 				return outErr
 			}
 			return err
@@ -86,6 +86,8 @@ func newRoot() *cobra.Command {
 	})
 	jobCommands(root, &opts, output)
 	runCommands(root, &opts, output)
+	daemonCommands(root, &opts)
+	serviceCommands(root, &opts, output)
 	return root
 }
 

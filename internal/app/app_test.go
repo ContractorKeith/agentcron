@@ -45,7 +45,7 @@ func TestInitAndDoctor(t *testing.T) {
 		t.Fatalf("settings overwritten: %q %v", got, err)
 	}
 	health, err := Doctor(ctx, opts)
-	if err != nil || !health.ConfigDir || !health.DataDir || health.SchemaVersion != 3 {
+	if err != nil || !health.ConfigDir || !health.DataDir || health.SchemaVersion != 4 {
 		t.Fatalf("health %+v: %v", health, err)
 	}
 	if info, err := os.Stat(filepath.Join(opts.ConfigDir, "jobs")); err != nil || !info.IsDir() {

@@ -69,8 +69,8 @@ func TestJobLifecycle(t *testing.T) {
 	if err := RemoveJob(ctx, opts, c, "morning", false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ShowJob(ctx, opts, c, "morning"); Code(err) != Usage {
-		t.Fatal(err)
+	if detail, err := ShowJob(ctx, opts, c, "morning"); err != nil || detail.Status != "orphaned" {
+		t.Fatal(detail, err)
 	}
 	cfg, _ := config.Load(opts.configOptions())
 	db, err := store.Open(ctx, cfg.Database())

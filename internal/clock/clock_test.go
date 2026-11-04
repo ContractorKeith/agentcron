@@ -34,3 +34,12 @@ func TestFakeAdvances(t *testing.T) {
 	default:
 	}
 }
+
+func TestBlockUntil(t *testing.T) {
+	c := NewFake(time.Time{})
+	done := make(chan struct{})
+	go func() { c.After(time.Second); close(done) }()
+	c.BlockUntil(1)
+	c.Advance(time.Second)
+	<-done
+}

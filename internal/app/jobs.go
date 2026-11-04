@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
@@ -16,6 +17,7 @@ type Job = jobs.Job
 func NewJob(name string) Job { return jobs.Defaults(name) }
 
 type JobView struct {
+	Status    string          `json:"status"`
 	Name      string          `json:"name"`
 	Job       *Job            `json:"job,omitempty"`
 	State     *store.JobState `json:"state,omitempty"`
@@ -59,6 +61,9 @@ func (s *jobSession) find(name string) (JobView, error) {
 			if view.Error != "" {
 				return view, &Error{Usage, fmt.Errorf("%s: %s", name, view.Error)}
 			}
+			if view.Job == nil {
+				break
+			}
 			return view, nil
 		}
 	}
@@ -66,10 +71,12 @@ func (s *jobSession) find(name string) (JobView, error) {
 }
 
 type JobDetail struct {
-	Job   Job            `json:"job"`
-	State store.JobState `json:"state"`
-	Next  []time.Time    `json:"next"`
-	Runs  []store.Run    `json:"runs"`
+	Status string         `json:"status"`
+	Error  string         `json:"error,omitempty"`
+	Job    Job            `json:"job"`
+	State  store.JobState `json:"state"`
+	Next   []time.Time    `json:"next"`
+	Runs   []store.Run    `json:"runs"`
 }
 
 func ShowJob(ctx context.Context, opts Options, c clock.Clock, name string) (JobDetail, error) {
@@ -80,18 +87,55 @@ func ShowJob(ctx context.Context, opts Options, c clock.Clock, name string) (Job
 	defer s.db.Close()
 	view, err := s.find(name)
 	if err != nil {
-		return JobDetail{}, err
+		for _, candidate := range s.views {
+			if candidate.Name == name && (candidate.Status == "orphaned" || candidate.Status == "invalid") {
+				view = candidate
+				err = nil
+				break
+			}
+		}
+		if err != nil {
+			return JobDetail{}, err
+		}
 	}
 	runs, err := s.db.ListRuns(ctx, name, "", 5)
 	if err != nil {
 		return JobDetail{}, err
 	}
-	return JobDetail{*view.Job, *view.State, jobFires(*view.Job, view.State.AnchorAt, s.now, 5), runs}, nil
+	if view.Job == nil {
+		return JobDetail{Status: view.Status, Error: view.Error, Job: Job{Name: name}, State: *view.State, Next: []time.Time{}, Runs: runs}, nil
+	}
+	return JobDetail{view.Status, "", *view.Job, *view.State, jobFires(*view.Job, view.State.AnchorAt, s.now, 5), runs}, nil
 }
 
 func (s *jobSession) persist(ctx context.Context, state store.JobState, enabled bool) error {
 	if !enabled {
 		return nil
 	}
-	return s.db.PutJobState(ctx, state)
+	return s.db.SyncDefinition(ctx, state)
+}
+
+func jobStatus(j Job, st store.JobState, runs []store.Run) string {
+	switch {
+	case st.Orphaned:
+		return "orphaned"
+	case !st.Approved:
+		return "unapproved"
+	case st.Paused:
+		return "paused"
+	}
+	if st.NextFire != nil {
+		return "active"
+	}
+	if strings.HasPrefix(j.Schedule, "at ") {
+		if st.Fired {
+			return "done"
+		}
+		for _, r := range runs {
+			if r.Trigger == "schedule" || r.Trigger == "catchup" {
+				return "done"
+			}
+		}
+	}
+	return "never"
 }

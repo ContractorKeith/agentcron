@@ -1,6 +1,9 @@
 package app
 
-import "errors"
+import (
+	"errors"
+	"github.com/ContractorKeith/agentcron/internal/config"
+)
 
 type ExitCode int
 
@@ -24,6 +27,10 @@ func (e *Error) Unwrap() error { return e.Err }
 func Code(err error) ExitCode {
 	if err == nil {
 		return OK
+	}
+	var invalid *config.ValidationError
+	if errors.As(err, &invalid) {
+		return Usage
 	}
 	var coded *Error
 	if errors.As(err, &coded) {
