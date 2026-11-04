@@ -27,12 +27,14 @@ func (Exec) Run(ctx context.Context, name string, args ...string) (string, error
 
 type Options struct {
 	OS, Home, Binary, Path, ConfigDir, DataDir string
+	MDKBRoot                                   string
 	UID                                        int
 }
 type Definition struct {
-	Path     string     `json:"path"`
-	Unit     string     `json:"unit"`
-	Commands [][]string `json:"commands"`
+	Path        string            `json:"path"`
+	Unit        string            `json:"unit"`
+	Commands    [][]string        `json:"commands"`
+	Environment map[string]string `json:"environment"`
 }
 type State struct {
 	Installed bool `json:"installed"`
@@ -45,7 +47,7 @@ func Current(binary, path, config, data string) (Options, error) {
 		return Options{}, err
 	}
 	binary, err = filepath.Abs(binary)
-	return Options{runtime.GOOS, home, binary, path, config, data, os.Getuid()}, err
+	return Options{OS: runtime.GOOS, Home: home, Binary: binary, Path: path, ConfigDir: config, DataDir: data, UID: os.Getuid(), MDKBRoot: os.Getenv("MDKB_ROOT")}, err
 }
 func (o Options) domain() string { return "gui/" + strconv.Itoa(o.UID) }
 func (o Options) file() string {

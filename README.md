@@ -140,3 +140,5 @@ For release preparation, see [Homebrew publishing](packaging/homebrew/README.md)
 The recursion guard stops accidental and casual recursion; an agent with unrestricted shell can unset `AGENTCRON_RUN_ID`, so runner permissions remain the boundary.
 
 On Linux, run `loginctl enable-linger $USER` to keep the user service running after logout.
+
+Service install captures and prints `PATH` and, when set, `MDKB_ROOT`; reinstall after changing either.
