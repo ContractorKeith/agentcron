@@ -36,6 +36,10 @@ func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, s
 	if err := j.Validate(s.config.JobsDir()); err != nil {
 		return "", &Error{Usage, err}
 	}
+	fires := jobFires(j, s.now, s.now, 1)
+	if len(fires) == 0 || fires[0].After(s.now.AddDate(5, 0, 0)) {
+		return "", &Error{Usage, fmt.Errorf("schedule never fires within 5 years")}
+	}
 	text, err := jobs.Encode(j)
 	if err != nil {
 		return "", err
