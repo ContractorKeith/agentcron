@@ -17,8 +17,7 @@ func TestResolutionAndInjection(t *testing.T) {
 	if err := os.WriteFile(binary, []byte("fake"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	config := filepath.Join(dir, "config.toml")
-	c, err := Resolve(config)
+	c, err := Resolve("", os.Getenv("MDKB_ROOT"))
 	if err != nil || c.Binary != binary || c.Root != os.Getenv("MDKB_ROOT") {
 		t.Fatalf("%+v %v", c, err)
 	}
@@ -26,18 +25,8 @@ func TestResolutionAndInjection(t *testing.T) {
 	if err = os.WriteFile(configured, []byte("fake"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(config, []byte("mdkb_path = '"+configured+"'\nmdkb_root = '~/configured-root'\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	c, err = Resolve(config)
+	c, err = Resolve(configured, filepath.Join(dir, "configured-root"))
 	if err != nil || c.Binary != configured || c.Root != filepath.Join(dir, "configured-root") {
-		t.Fatalf("%+v %v", c, err)
-	}
-	if err = os.WriteFile(config, []byte("mdkb_path = '~/configured'\nmdkb_root = '~'\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	c, err = Resolve(config)
-	if err != nil || c.Root != dir || c.Binary != configured {
 		t.Fatalf("%+v %v", c, err)
 	}
 	c.Root = ""
@@ -55,7 +44,6 @@ func TestResolutionAndInjection(t *testing.T) {
 	combined := ""
 	for i := 0; i < len(flags); i += 2 {
 		combined += flags[i+1] + "\n"
-
 	}
 	if _, err = toml.Decode(combined, &parsed); err != nil {
 		t.Fatal(err)
@@ -64,11 +52,7 @@ func TestResolutionAndInjection(t *testing.T) {
 	if server.Command != c.Binary || len(server.Args) != 2 || server.Args[1] != "--allow-write" {
 		t.Fatalf("%+v", server)
 	}
-	if err = os.Remove(config); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("MDKB_ROOT", "")
-	c, err = Resolve(config)
+	c, err = Resolve("", "")
 	if err != nil || c.Root != "" {
 		t.Fatalf("%+v %v", c, err)
 	}

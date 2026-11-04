@@ -15,6 +15,6 @@ func (s *Store) MemoryNote(ctx context.Context, job string) (string, error) {
 }
 
 func (s *Store) SetMemoryNote(ctx context.Context, job, note string) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO job_state(name,updated_at,memory_note) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET memory_note=excluded.memory_note`, job, "1970-01-01T00:00:00Z", note)
+	_, err := s.db.ExecContext(ctx, "UPDATE job_state SET memory_note=? WHERE name=?", note, job)
 	return err
 }

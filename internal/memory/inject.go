@@ -3,9 +3,11 @@ package memory
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/BurntSushi/toml"
 )
@@ -21,11 +23,11 @@ func HasMCPConfig(args []string) bool {
 
 // Inject returns runner flags; command runners receive only the memory environment.
 func (c Client) Inject(runner, dir string, args []string) ([]string, error) {
+	if Override(runner, args) != "" {
+		return nil, nil
+	}
 	switch runner {
 	case "claude":
-		if HasMCPConfig(args) {
-			return nil, nil
-		}
 		server := struct {
 			Command string   `json:"command"`
 			Args    []string `json:"args"`
@@ -36,10 +38,15 @@ func (c Client) Inject(runner, dir string, args []string) ([]string, error) {
 			return nil, err
 		}
 		path := filepath.Join(dir, "mcp.json")
-		if err = os.WriteFile(path, data, 0600); err != nil {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
+		if err != nil {
 			return nil, err
 		}
-		return []string{"--mcp-config", path, "--strict-mcp-config"}, nil
+		_, writeErr := file.Write(data)
+		if err = errors.Join(writeErr, file.Close()); err != nil {
+			return nil, err
+		}
+		return []string{"--mcp-config", path, "--strict-mcp-config", "--allowedTools", "mcp__mdkb__*"}, nil
 	case "codex":
 		// Use the TOML encoder rather than Go quoting: TOML escapes differ for controls.
 		var buf bytes.Buffer
@@ -59,10 +66,10 @@ func (c Client) Inject(runner, dir string, args []string) ([]string, error) {
 	return nil, nil
 }
 
-func Preamble(job string, ownConfig bool) string {
+func Preamble(job string, ownConfig string) string {
 	text := "Memory note: agentcron/" + job + "\nRead it with the mdkb MCP tools before you start; append what you learned and what to do next time at the end of the run.\n"
-	if ownConfig {
-		text += "Using the job's own --mcp-config; agentcron did not inject mdkb MCP.\n"
+	if ownConfig != "" {
+		text += "Using the job's own " + ownConfig + "; agentcron did not inject mdkb MCP.\n"
 	}
 	return text
 }

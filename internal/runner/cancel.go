@@ -36,6 +36,16 @@ func cancelRun(ctx context.Context, db *store.Store, data, id string, c clock.Cl
 	if e != nil {
 		return e
 	}
+	if r.State == "claimed" && r.OwnerPID != nil && r.OwnerStart != nil {
+		start, err := processStart(*r.OwnerPID, "/bin/ps")
+		if err == nil && start.Equal(*r.OwnerStart) {
+			dir := filepath.Join(data, "runs", id)
+			if err = os.MkdirAll(dir, 0700); err != nil {
+				return err
+			}
+			return os.WriteFile(filepath.Join(dir, "cancel"), nil, 0600)
+		}
+	}
 	if !identityLive(r) {
 		return fmt.Errorf("run is not running or process identity no longer matches run")
 	}

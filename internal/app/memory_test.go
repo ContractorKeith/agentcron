@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
@@ -64,5 +65,36 @@ func TestMemoryReadAndMissingBinary(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if _, err = Memory(ctx, opts, "note"); err == nil || Code(err) != Runtime {
 		t.Fatal(err)
+	}
+}
+
+func TestMemoryReportsAbsentNoteAndDisabledJob(t *testing.T) {
+	opts := isolated(t)
+	ctx := context.Background()
+	if err := Init(ctx, opts); err != nil {
+		t.Fatal(err)
+	}
+	root := os.Getenv("MDKB_ROOT")
+	if err := os.MkdirAll(filepath.Join(root, ".mdkb"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, enabled := range []bool{true, false} {
+		name, want := "missing", "no memory note yet"
+		if !enabled {
+			name, want = "disabled", "memory is off for this job"
+		}
+		j := NewJob(name)
+		j.Schedule = "@daily"
+		j.Runner = "command"
+		j.Command = []string{"cat"}
+		j.Prompt = "hi"
+		j.Memory = enabled
+		if _, err := AddJob(ctx, opts, clock.Real{}, j, false); err != nil {
+			t.Fatal(err)
+		}
+		_, err := Memory(ctx, opts, name)
+		if Code(err) != Usage || !strings.Contains(err.Error(), want) {
+			t.Fatalf("%s: %v", name, err)
+		}
 	}
 }

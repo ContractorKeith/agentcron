@@ -22,7 +22,7 @@ func TestPrecedence(t *testing.T) {
 			scratch := t.TempDir()
 			t.Setenv("HOME", filepath.Join(scratch, "home"))
 			t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(scratch, "gitconfig"))
-			for _, key := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "AGENTCRON_CONFIG_DIR", "AGENTCRON_DATA_DIR"} {
+			for _, key := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "AGENTCRON_CONFIG_DIR", "AGENTCRON_DATA_DIR", "MDKB_ROOT"} {
 				t.Setenv(key, "")
 			}
 			paths := map[string]Options{
@@ -72,7 +72,7 @@ func TestPrecedence(t *testing.T) {
 				t.Fatalf("paths = %s, %s; want %+v", got.ConfigDir, got.DataDir, want)
 			}
 			if tc.file {
-				if got.Concurrency != 4 || got.KeepRuns != 7 || !got.AllowAgentScheduling || got.MDKBRoot != "scratch-kb" {
+				if got.Concurrency != 4 || got.KeepRuns != 7 || !got.AllowAgentScheduling || !filepath.IsAbs(got.MDKBRoot) || filepath.Base(got.MDKBRoot) != "scratch-kb" {
 					t.Fatalf("file settings: %+v", got)
 				}
 			} else if got.Concurrency != 2 || got.KeepRuns != 50 || got.AllowAgentScheduling || got.MDKBRoot != "" {

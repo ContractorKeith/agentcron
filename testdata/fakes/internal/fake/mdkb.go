@@ -1,10 +1,12 @@
 package fake
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // mdkb shares the runner record format but uses scratch marker files as notes.
@@ -12,7 +14,8 @@ func mdkb() bool {
 	if filepath.Base(os.Args[0]) != "mdkb" {
 		return false
 	}
-	if os.Getenv("FAKE_MDKB_FAIL") != "" {
+	if message := os.Getenv("FAKE_MDKB_FAIL"); message != "" {
+		fmt.Fprintln(os.Stderr, message)
 		os.Exit(1)
 	}
 	root := os.Getenv("MDKB_ROOT")
@@ -27,14 +30,25 @@ func mdkb() bool {
 	if len(args) == 0 {
 		os.Exit(2)
 	}
+	if delay := os.Getenv("FAKE_MDKB_" + strings.ToUpper(args[0]) + "_SLEEP"); delay != "" {
+		duration, err := time.ParseDuration(delay)
+		if err != nil {
+			os.Exit(1)
+		}
+		time.Sleep(duration)
+	}
 	switch args[0] {
 	case "version":
 		fmt.Println("mdkb fake-v1")
 	case "info":
-		if _, err := os.Stat(filepath.Join(root, ".mdkb")); err != nil {
-			os.Exit(3)
+		if _, err := os.Stat(root); err != nil {
+			os.Exit(2)
 		}
-		fmt.Println(`{"initialized":true}`)
+		_, err := os.Stat(filepath.Join(root, ".mdkb"))
+		return json.NewEncoder(os.Stdout).Encode(struct {
+			Root        string `json:"root"`
+			Initialised bool   `json:"initialized"`
+		}{root, err == nil}) == nil
 	case "cat":
 		if len(args) < 2 {
 			os.Exit(2)

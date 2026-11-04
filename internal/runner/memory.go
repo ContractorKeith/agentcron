@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/ContractorKeith/agentcron/internal/config"
 	"github.com/ContractorKeith/agentcron/internal/jobs"
 	"github.com/ContractorKeith/agentcron/internal/memory"
 	"github.com/ContractorKeith/agentcron/internal/store"
@@ -24,19 +25,20 @@ func (x Runner) prepareMemory(ctx context.Context, j jobs.Job, dir string) (runM
 	if configDir == "" {
 		configDir = filepath.Dir(x.JobsDir)
 	}
-	client, err := memory.Resolve(filepath.Join(configDir, "config.toml"))
+	cfg, err := config.Load(config.Options{ConfigDir: configDir, DataDir: x.DataDir})
+	if err != nil {
+		return result, fmt.Errorf("memory unavailable: %w", err)
+	}
+	client, err := memory.Resolve(cfg.MDKBPath, cfg.MDKBRoot)
 	if err != nil {
 		return result, fmt.Errorf("memory unavailable: %w", err)
 	}
 	note := "agentcron/" + j.Name
-	// Include the resolved binary/root in the cache so changing KBs bootstraps again.
+	// Record the last verified binary/root and note; verification still runs every time.
 	key := client.Binary + "\n" + client.Root + "\n" + note
-	cached, err := x.DB.MemoryNote(ctx, j.Name)
-	if err == nil && cached != key {
-		err = client.Ensure(ctx, j.Name, j.Schedule, j.Runner)
-		if err == nil {
-			err = x.DB.SetMemoryNote(ctx, j.Name, key)
-		}
+	err = client.Ensure(ctx, j.Name, j.Schedule, j.Runner)
+	if err == nil {
+		err = x.DB.SetMemoryNote(ctx, j.Name, key)
 	}
 	if err == nil {
 		result.flags, err = client.Inject(j.Runner, dir, j.Args)
@@ -44,7 +46,7 @@ func (x Runner) prepareMemory(ctx context.Context, j jobs.Job, dir string) (runM
 	if err != nil {
 		return runMemory{}, fmt.Errorf("memory unavailable: %w", err)
 	}
-	result.preamble = memory.Preamble(j.Name, j.Runner == "claude" && memory.HasMCPConfig(j.Args))
+	result.preamble = memory.Preamble(j.Name, memory.Override(j.Runner, j.Args))
 	result.env = []string{"AGENTCRON_MEMORY_NOTE=" + note}
 	if client.Root != "" {
 		result.env = append(result.env, "MDKB_ROOT="+client.Root)
@@ -53,7 +55,8 @@ func (x Runner) prepareMemory(ctx context.Context, j jobs.Job, dir string) (runM
 }
 
 func memoryArgv(j jobs.Job, r store.Run, prompt string, flags []string) []string {
-	j.Args = append(append([]string{}, flags...), j.Args...)
+	flags, args := memoryPermissions(flags, j.Args)
+	j.Args = append(append([]string{}, flags...), args...)
 	return Argv(j, r.Worktree, prompt)
 }
 

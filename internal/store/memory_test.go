@@ -43,3 +43,22 @@ func TestMemoryCacheSurvivesStateUpdatesAndReopen(t *testing.T) {
 		t.Fatalf("%+v %v", states, err)
 	}
 }
+
+func TestMemoryVerificationNeverCreatesJobState(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(ctx, scratchDB(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err = s.SetMemoryNote(ctx, "absent", "verified"); err != nil {
+		t.Fatal(err)
+	}
+	states, err := s.JobStates(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := states["absent"]; ok {
+		t.Fatal("memory verification created job state")
+	}
+}

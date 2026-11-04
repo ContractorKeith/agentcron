@@ -72,7 +72,7 @@ func (s *Store) StartOwnedRun(ctx context.Context, r Run) error {
 	return s.transition(ctx, r.ID, "claimed", "state='running',pid=?,started_at=?,worktree=?,owner_pid=?,proc_start=?,owner_start=COALESCE(?,owner_start)", r.PID, r.StartedAt.UTC().Format(time.RFC3339Nano), r.Worktree, r.OwnerPID, proc, formatTime(r.OwnerStart))
 }
 func (s *Store) FinishClaimedRun(ctx context.Context, r Run) error {
-	if r.State != "failed" && r.State != "timed_out" && r.State != "skipped" {
+	if r.State != "failed" && r.State != "timed_out" && r.State != "skipped" && r.State != "cancelled" {
 		return fmt.Errorf("invalid claimed outcome")
 	}
 	return s.finishRun(ctx, r, "claimed")

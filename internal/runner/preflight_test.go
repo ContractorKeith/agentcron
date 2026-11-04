@@ -76,7 +76,7 @@ func TestPreambleGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := store.Run{ID: "r_20261104T120000Z_ABCD", Job: "fixture", Trigger: "manual", ScheduledFor: time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)}
-	if got := Preamble(r, nil, "/data", memory.Preamble("fixture", false)); got != string(want)+"\n" {
+	if got := Preamble(r, nil, "/data", memory.Preamble("fixture", "")); got != string(want)+"\n" {
 		t.Fatalf("preamble %q", got)
 	}
 }

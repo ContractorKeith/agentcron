@@ -105,10 +105,10 @@ func TestMemoryRuns(t *testing.T) {
 			}
 		}
 	}
-	if newCount != 1 || catCount != 1 {
+	if newCount != 1 || catCount != 4 {
 		t.Fatalf("new=%d cat=%d", newCount, catCount)
 	}
-	client, err := memory.Resolve(filepath.Join(x.DataDir, "config.toml"))
+	client, err := memory.Resolve("", os.Getenv("MDKB_ROOT"))
 	if err != nil {
 		t.Fatal(err)
 	}
