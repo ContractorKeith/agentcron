@@ -41,8 +41,11 @@ func Run(ctx context.Context, opts app.Options, allowWrite bool, version string)
 // Explicit structured content preserves CLI arrays rather than wrapping them in objects.
 func register[In any](s *mcp.Server, state *server, name, description string, write bool, fn func(context.Context, In) (any, error)) {
 	mcp.AddTool(s, &mcp.Tool{Name: name, Description: description}, func(ctx context.Context, _ *mcp.CallToolRequest, in In) (*mcp.CallToolResult, any, error) {
-		state.mu.Lock()
-		defer state.mu.Unlock()
+		// Serialize writes; read tools must not wait on another tool's file IO.
+		if write {
+			state.mu.Lock()
+			defer state.mu.Unlock()
+		}
 		if write {
 			if err := app.CheckMCPWrite(state.opts); err != nil {
 				return nil, nil, err

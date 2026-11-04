@@ -49,6 +49,11 @@ func addReads(s *mcp.Server, st *server) {
 		if err != nil {
 			return nil, err
 		}
+		if in.Job != "" {
+			if _, err := app.ShowJob(ctx, st.opts, st.clock, in.Job); err != nil {
+				return nil, err
+			}
+		}
 		return app.Runs(ctx, st.opts, st.clock, in.Job, in.State, n)
 	})
 	register(s, st, "get_run_output", "Read stdout or stderr tail; default 16384 bytes, maximum 262144; truncated reports omitted bytes.", false, func(ctx context.Context, in outputInput) (any, error) {

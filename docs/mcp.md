@@ -31,14 +31,18 @@ also contains the JSON. Output tails are bounded in bytes and set `truncated: tr
 when earlier bytes were omitted. Missing logs on a known run return empty output.
 Unknown jobs/runs, invalid fields or bounds, policy refusals and storage failures
 return actionable tool errors (`isError: true`). Unregistered tools, including writes
-without the flag, are rejected by the SDK as JSON-RPC errors.
+without the flag, are rejected by the SDK as JSON-RPC errors. A malformed JSON line
+ends the stdio session (SDK behaviour); the client must restart the server.
 
 ## Approval and recursion guard
 
 New MCP jobs start paused and unapproved. Resuming cannot approve them, and `run_job`
 refuses unapproved jobs. A human runs `agentcron approve <name>` (or uses the TUI)
 to approve and resume; repeated approval preserves subsequent pause choices.
-Approval is never exposed through MCP. A daemon or `agentcron tick` runs the queue.
+Approval is never exposed through MCP. `run_job` refuses paused, orphaned, invalid
+and unapproved jobs; an unknown job filter in `list_runs` returns a tool error. CLI
+`run`, with or without `--now`, refuses unapproved jobs with exit 5 before writing a
+ledger row. A daemon or `agentcron tick` runs the queue.
 
 When `AGENTCRON_RUN_ID` is nonempty, every write tool refuses calls unless
 `allow_agent_scheduling = true` is set in config.toml. This setting permits recursive
@@ -46,8 +50,12 @@ schedule changes but still requires human approval of newly created jobs.
 
 Hand-written files remain trusted local configuration. Runner permissions must
 prevent writes to the config directory; see [ADR 0003](adr/0003-unattended-safety-defaults.md).
-`doctor` warns when jobs live inside a job's repository, and preflight blocks a run
-whose worktree would contain the config directory, including through symlinks.
+`doctor`'s warning when the jobs directory is inside a job repository is the main
+mitigation for job files tracked inside that repository. A narrower check during
+worktree creation refuses a run whose new worktree would contain the config
+directory, including through symlinks; it does not detect tracked job files in the
+source repository. Log tails refuse symlinks and non-regular files and confine run
+directory resolution to the instance's `runs` directory.
 
 ## Stdio smoke tests
 

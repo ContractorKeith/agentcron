@@ -341,8 +341,6 @@ expect_state memory-budget timed_out
 if grep '"argv":\["'"$scratch/bin/claude"'"' "$scratch/memory-budget-record"; then echo 'agent launched during expired setup'; exit 1; fi
 unset FAKE_RECORD
 
-echo "accept: ok"
-
 echo "== MCP and approval"
 export AGENTCRON_CONFIG_DIR="$scratch/m5-config" AGENTCRON_DATA_DIR="$scratch/m5-data"
 "$bin" init >/dev/null
@@ -375,6 +373,9 @@ grep '"status":"unapproved"' "$scratch/mcp-create" >/dev/null
 test -f "$AGENTCRON_CONFIG_DIR/jobs/agent.toml"
 grep 'created_by = "mcp"' "$AGENTCRON_CONFIG_DIR/jobs/agent.toml" >/dev/null
 "$bin" ls | grep 'unapproved' >/dev/null
+"$bin" run agent >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 5
+"$bin" run agent --now >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 5
+test "$("$bin" runs agent --json)" = '[]'
 "$bin" tick >/dev/null 2>"$scratch/mcp-tick-err"
 test "$("$bin" runs agent --json)" = '[]'
 "$bin" approve absent >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 2

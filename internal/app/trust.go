@@ -10,6 +10,9 @@ import (
 )
 
 func trustWarnings(c config.Config) ([]string, error) {
+	if !isDir(c.JobsDir()) {
+		return nil, nil
+	}
 	entries, err := jobs.List(c.JobsDir())
 	if err != nil {
 		return nil, err

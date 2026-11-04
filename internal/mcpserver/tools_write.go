@@ -57,10 +57,12 @@ func addWrites(s *mcp.Server, st *server) {
 	})
 	for _, paused := range []bool{true, false} {
 		name := "resume_job"
+		description := "Resume a paused job; this does not approve an unapproved job."
 		if paused {
 			name = "pause_job"
+			description = "Pause a job to prevent scheduled or queued runs from starting."
 		}
-		register(s, st, name, "Change pause state; resuming does not approve a job.", true, func(ctx context.Context, in jobInput) (any, error) {
+		register(s, st, name, description, true, func(ctx context.Context, in jobInput) (any, error) {
 			if err := app.PauseJob(ctx, st.opts, st.clock, in.Name, paused); err != nil {
 				return nil, err
 			}

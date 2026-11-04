@@ -73,6 +73,9 @@ func EnqueueMCPRun(ctx context.Context, opts Options, c clock.Clock, name string
 	if !v.State.Approved {
 		return Run{}, &Error{Refused, fmt.Errorf("job %q is unapproved; ask a human to run agentcron approve %s", name, name)}
 	}
+	if v.State.Paused {
+		return Run{}, &Error{Refused, fmt.Errorf("job %q is paused; resume it before running", name)}
+	}
 	r, err := store.NewRun(name, "mcp", c.Now())
 	if err != nil {
 		return r, err

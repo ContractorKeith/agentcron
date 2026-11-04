@@ -35,7 +35,7 @@ func TailOutput(ctx context.Context, opts Options, c clock.Clock, id, stream str
 	if err != nil {
 		return out, err
 	}
-	f, err := os.Open(filepath.Join(s.config.DataDir, "runs", r.ID, stream+".log"))
+	f, err := openRegularLog(filepath.Join(s.config.DataDir, "runs"), r.ID, stream+".log")
 	if os.IsNotExist(err) {
 		return out, nil
 	}
