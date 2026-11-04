@@ -16,6 +16,11 @@ func fixture(t *testing.T) (*Engine, context.Context) {
 	t.Helper()
 	ctx := context.Background()
 	data := t.TempDir()
+	for _, key := range []string{"HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"} {
+		t.Setenv(key, data)
+	}
+	t.Setenv("MDKB_ROOT", filepath.Join(data, "kb"))
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(data, "gitconfig"))
 	db, err := store.Open(ctx, filepath.Join(data, "db"))
 	if err != nil {
 		t.Fatal(err)
@@ -145,6 +150,7 @@ func TestClaimOldestConcurrencyAndOverlap(t *testing.T) {
 func TestStartClaimedRun(t *testing.T) {
 	e, ctx := fixture(t)
 	j := jobs.Defaults("command")
+	j.Memory = false // This test exercises queue ownership without a KB dependency.
 	j.Schedule = "@daily"
 	j.Runner = "command"
 	j.Command = []string{"cat"}

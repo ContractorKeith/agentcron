@@ -112,6 +112,18 @@ Paths (Linux `$XDG_*`, macOS the same variables with these fallbacks):
 - data `~/.local/share/agentcron/`: `agentcron.db`, `runs/<run-id>/{stdout,stderr}.log`,
   `runs/<run-id>/mcp.json`, `worktrees/<job>/<run-id>/`, `daemon.lock`
 
+Memory configuration in `config.toml`:
+
+```toml
+mdkb_path = ""  # empty: find mdkb on PATH; otherwise the executable path
+mdkb_root = ""  # empty: MDKB_ROOT, then mdkb's own config/default
+```
+
+The config layer expands `~` and resolves configured paths to absolute paths.
+An unset KB root stays unset so mdkb retains its own root precedence. New jobs
+created by `add` default memory to mdkb presence; `--memory` and `--no-memory`
+explicitly override that default.
+
 **Job** — named by its file name: `^[a-z0-9][a-z0-9-]{0,62}$`.
 
 ```toml
@@ -154,7 +166,7 @@ Environment given to every run: `AGENTCRON_JOB`, `AGENTCRON_RUN_ID`,
 ```
 agentcron init                                  create config, jobs and data dirs (idempotent)
 agentcron add <name> --schedule S --runner R [--prompt T | --prompt-file F] [--repo P] [--base B]
-          [--timezone Z] [--arg A]... [--command C]... [--timeout D] [--expect RE] [--no-memory] [--dry-run]
+          [--timezone Z] [--arg A]... [--command C]... [--timeout D] [--expect RE] [--memory | --no-memory] [--dry-run]
 agentcron ls [--json]                           jobs with schedule, next fire, last state
 agentcron show <name> [--json]                  job, state, next 5 fires, last 5 runs
 agentcron rm <name> [--dry-run]                 removes the file; runs stay in the ledger

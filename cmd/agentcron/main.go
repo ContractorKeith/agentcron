@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ContractorKeith/agentcron/internal/app"
 	"github.com/spf13/cobra"
@@ -75,10 +76,14 @@ func newRoot() *cobra.Command {
 			if err != nil && app.Code(err) != app.NotInitialized {
 				return err
 			}
+			warnings := ""
+			if len(health.Warnings) > 0 {
+				warnings = strings.Join(health.Warnings, "\n") + "\n"
+			}
 			if outErr := output(cmd, health,
-				"Config: %s (%t)\nData: %s (%t)\nSchema version: %d\ngit: %t\nclaude: %t\ncodex: %t\nmdkb: %t\nService installed: %t active: %t\nDaemon pid: %d\n",
+				"Config: %s (%t)\nData: %s (%t)\nSchema version: %d\ngit: %t\nclaude: %t\ncodex: %t\nmdkb: %t\nmdkb version: %s\nKB root: %s\nKB initialised: %t\nService installed: %t active: %t\nDaemon pid: %d\n%s",
 				health.ConfigPath, health.ConfigDir, health.DataPath, health.DataDir, health.SchemaVersion,
-				health.Git, health.Claude, health.Codex, health.MDKB, health.Service.Installed, health.Service.Active, health.DaemonPID); outErr != nil {
+				health.Git, health.Claude, health.Codex, health.MDKB, health.MDKBVersion, health.KBRoot, health.KBInitialised, health.Service.Installed, health.Service.Active, health.DaemonPID, warnings); outErr != nil {
 				return outErr
 			}
 			return err
@@ -88,6 +93,7 @@ func newRoot() *cobra.Command {
 	runCommands(root, &opts, output)
 	daemonCommands(root, &opts)
 	serviceCommands(root, &opts, output)
+	memoryCommand(root, &opts, output)
 	return root
 }
 

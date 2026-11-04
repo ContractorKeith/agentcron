@@ -1,0 +1,75 @@
+package memory
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"syscall"
+
+	"github.com/BurntSushi/toml"
+)
+
+func HasMCPConfig(args []string) bool {
+	for _, arg := range args {
+		if arg == "--mcp-config" || strings.HasPrefix(arg, "--mcp-config=") {
+			return true
+		}
+	}
+	return false
+}
+
+// Inject returns runner flags; command runners receive only the memory environment.
+func (c Client) Inject(runner, dir string, args []string) ([]string, error) {
+	if Override(runner, args) != "" {
+		return nil, nil
+	}
+	switch runner {
+	case "claude":
+		server := struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+		}{c.Binary, c.Args("mcp", "--allow-write")}
+		config := map[string]any{"mcpServers": map[string]any{"mdkb": server}}
+		data, err := json.Marshal(config)
+		if err != nil {
+			return nil, err
+		}
+		path := filepath.Join(dir, "mcp.json")
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
+		if err != nil {
+			return nil, err
+		}
+		_, writeErr := file.Write(data)
+		if err = errors.Join(writeErr, file.Close()); err != nil {
+			return nil, err
+		}
+		return []string{"--mcp-config", path, "--strict-mcp-config", "--allowedTools", "mcp__mdkb__*"}, nil
+	case "codex":
+		// Use the TOML encoder rather than Go quoting: TOML escapes differ for controls.
+		var buf bytes.Buffer
+		values := struct {
+			Command string   `toml:"command"`
+			Args    []string `toml:"args"`
+		}{c.Binary, c.Args("mcp", "--allow-write")}
+		if err := toml.NewEncoder(&buf).Encode(values); err != nil {
+			return nil, err
+		}
+		var flags []string
+		for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+			flags = append(flags, "-c", "mcp_servers.mdkb."+strings.Replace(line, " = ", "=", 1))
+		}
+		return flags, nil
+	}
+	return nil, nil
+}
+
+func Preamble(job string, ownConfig string) string {
+	text := "Memory note: agentcron/" + job + "\nRead it with the mdkb MCP tools before you start; append what you learned and what to do next time at the end of the run.\n"
+	if ownConfig != "" {
+		text += "Using the job's own " + ownConfig + "; agentcron did not inject mdkb MCP.\n"
+	}
+	return text
+}

@@ -11,8 +11,10 @@ func isolated(t *testing.T) Options {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
+	t.Setenv("MDKB_ROOT", filepath.Join(dir, "kb"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(dir, "gitconfig"))
 	t.Setenv("AGENTCRON_CONFIG_DIR", "")
 	t.Setenv("AGENTCRON_DATA_DIR", "")
@@ -45,7 +47,7 @@ func TestInitAndDoctor(t *testing.T) {
 		t.Fatalf("settings overwritten: %q %v", got, err)
 	}
 	health, err := Doctor(ctx, opts)
-	if err != nil || !health.ConfigDir || !health.DataDir || health.SchemaVersion != 4 {
+	if err != nil || !health.ConfigDir || !health.DataDir || health.SchemaVersion != 5 {
 		t.Fatalf("health %+v: %v", health, err)
 	}
 	if info, err := os.Stat(filepath.Join(opts.ConfigDir, "jobs")); err != nil || !info.IsDir() {

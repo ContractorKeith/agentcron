@@ -37,10 +37,10 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		t := x.Clock.Now().UTC()
 		r.EndedAt = &t
 		if cause != nil {
-			r.Error = cause.Error()
+			r.Error = runError(r.Error, cause)
 		}
 		var err error
-		if !running && (state == "failed" || state == "timed_out" || (state == "skipped" && wasClaimed)) {
+		if !running && (state == "failed" || state == "timed_out" || state == "cancelled" || (state == "skipped" && wasClaimed)) {
 			err = x.DB.FinishClaimedRun(persist, r)
 		} else {
 			err = x.DB.FinishRun(persist, r)
@@ -78,6 +78,7 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 			return r, err
 		}
 	}
+	r.State = "claimed"
 	setupStarted := x.Clock.Now()
 	p, updated, err := x.setup(ctx, j, r, approved)
 	r = updated
@@ -85,6 +86,8 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		state := "blocked_config"
 		if errors.Is(err, errSetupTimeout) {
 			state = "timed_out"
+		} else if errors.Is(err, errSetupCancelled) || errors.Is(err, context.Canceled) {
+			state = "cancelled"
 		}
 		return finish(state, err)
 	}
@@ -106,8 +109,9 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		return abort(err)
 	}
 	defer stderr.Close()
-	prompt := Preamble(r, last, x.DataDir) + p.prompt
-	cmd := exec.Command(p.binary, Argv(j, r.Worktree, prompt)...)
+	mem := p.memory
+	prompt := Preamble(r, last, x.DataDir, mem.preamble) + p.prompt
+	cmd := exec.Command(p.binary, memoryArgv(j, r, prompt, mem.flags)...)
 	cmd.Dir = r.Worktree
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -128,8 +132,12 @@ func (x Runner) run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	if last != nil {
 		lastOutput = filepath.Join(x.DataDir, "runs", last.ID, "stdout.log")
 	}
-	cmd.Env = x.runEnv(j, r, lastOutput)
+	cmd.Env = append(x.runEnv(j, r, lastOutput), mem.env...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if setupCancelled(dir) || ctx.Err() != nil {
+		r.Kept, err = cleanup(persist, j, r, p.base)
+		return finish("cancelled", errors.Join(errSetupCancelled, err))
+	}
 	started := x.Clock.Now().UTC()
 	if err = cmd.Start(); err != nil {
 		return abort(err)

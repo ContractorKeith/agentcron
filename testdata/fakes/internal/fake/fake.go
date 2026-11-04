@@ -68,6 +68,9 @@ func run() error {
 			return closeErr
 		}
 	}
+	if mdkb() {
+		return nil
+	}
 	duration := 60 * time.Second
 	if value := os.Getenv("FAKE_SLEEP"); value != "" {
 		duration, err = time.ParseDuration(value)

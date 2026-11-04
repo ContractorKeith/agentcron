@@ -3,23 +3,24 @@ package runner
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ContractorKeith/agentcron/internal/jobs"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
-func Preamble(r store.Run, last *store.Run, data string) string {
+func Preamble(r store.Run, last *store.Run, data string, memoryLines ...string) string {
 	state, output := "none", "none"
 	if last != nil {
 		state = last.State
 		output = filepath.Join(data, "runs", last.ID, "stdout.log")
 	}
-	return fmt.Sprintf("Job: %s\nRun: %s\nTrigger: %s\nScheduled for: %s\nLast run state: %s\nLast output: %s\n%s\n", r.Job, r.ID, r.Trigger, r.ScheduledFor.UTC().Format(time.RFC3339), state, output, memoryPreamble())
+	return fmt.Sprintf("Job: %s\nRun: %s\nTrigger: %s\nScheduled for: %s\nLast run state: %s\nLast output: %s\n%s\n", r.Job, r.ID, r.Trigger, r.ScheduledFor.UTC().Format(time.RFC3339), state, output, memoryPreamble(memoryLines))
 }
 
 // memoryPreamble is the M4 hook for the job's memory note.
-func memoryPreamble() string { return "" }
+func memoryPreamble(lines []string) string { return strings.Join(lines, "") }
 func Argv(j jobs.Job, workdir, prompt string) []string {
 	switch j.Runner {
 	case "claude":

@@ -29,7 +29,7 @@ func TestMigrateAndReopen(t *testing.T) {
 			t.Fatal(err)
 		}
 		version, err := s.SchemaVersion(ctx)
-		if err != nil || version != 4 {
+		if err != nil || version != 5 {
 			t.Fatalf("version %d: %v", version, err)
 		}
 		var journal string
@@ -41,7 +41,7 @@ func TestMigrateAndReopen(t *testing.T) {
 			t.Fatalf("timeout %d: %v", timeout, err)
 		}
 		for table, want := range map[string][]string{
-			"job_state": {"name", "paused", "approved", "next_fire", "last_run_id", "updated_at", "anchor_at", "orphaned", "schedule_key", "fired"},
+			"job_state": {"name", "paused", "approved", "next_fire", "last_run_id", "updated_at", "anchor_at", "orphaned", "schedule_key", "fired", "memory_note"},
 			"runs":      {"id", "job", "trigger", "scheduled_for", "state", "pid", "exit_code", "started_at", "ended_at", "worktree", "kept", "error", "owner_pid", "proc_start", "owner_start"},
 		} {
 			rows, err := s.db.Query("SELECT * FROM " + table + " LIMIT 0")
@@ -72,7 +72,7 @@ func TestMigrateAndReopen(t *testing.T) {
 	}
 	defer s.Close()
 	var count int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM schema_version").Scan(&count); err != nil || count != 4 {
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM schema_version").Scan(&count); err != nil || count != 5 {
 		t.Fatalf("migration rows %d: %v", count, err)
 	}
 }

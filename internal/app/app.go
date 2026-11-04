@@ -10,6 +10,8 @@ import (
 
 	"github.com/ContractorKeith/agentcron/internal/config"
 	"github.com/ContractorKeith/agentcron/internal/daemon"
+	"github.com/ContractorKeith/agentcron/internal/jobs"
+	"github.com/ContractorKeith/agentcron/internal/memory"
 	"github.com/ContractorKeith/agentcron/internal/service"
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
@@ -63,6 +65,10 @@ type Health struct {
 	Claude        bool          `json:"claude"`
 	Codex         bool          `json:"codex"`
 	MDKB          bool          `json:"mdkb"`
+	MDKBVersion   string        `json:"mdkb_version"`
+	KBRoot        string        `json:"kb_root"`
+	KBInitialised bool          `json:"kb_initialised"`
+	Warnings      []string      `json:"warnings,omitempty"`
 	ConfigPath    string        `json:"-"`
 	DataPath      string        `json:"-"`
 }
@@ -78,6 +84,9 @@ func Doctor(ctx context.Context, opts Options) (Health, error) {
 		ConfigPath: c.ConfigDir, DataPath: c.DataDir,
 		Git: onPath("git"), Claude: onPath("claude"), Codex: onPath("codex"), MDKB: onPath("mdkb"),
 	}
+	client, _ := memory.Resolve(c.MDKBPath, c.MDKBRoot)
+	mh := client.Status(ctx)
+	h.MDKB, h.MDKBVersion, h.KBRoot, h.KBInitialised = mh.Present, mh.Version, mh.Root, mh.Initialised
 	if _, err := os.Stat(c.Database()); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return h, &Error{NotInitialized, fmt.Errorf("data directory is not initialised; run agentcron init")}
@@ -98,6 +107,17 @@ func Doctor(ctx context.Context, opts Options) (Health, error) {
 		return h, e
 	}
 	h.DaemonPID = daemon.Holder(c.DataDir)
+	if !h.MDKB && isDir(c.JobsDir()) {
+		entries, err := jobs.List(c.JobsDir())
+		if err != nil {
+			return h, err
+		}
+		for _, entry := range entries {
+			if entry.Job != nil && entry.Job.Memory {
+				h.Warnings = append(h.Warnings, fmt.Sprintf("job %s has memory on but mdkb is missing", entry.Name))
+			}
+		}
+	}
 	h.SchemaVersion, err = db.SchemaVersion(ctx)
 	return h, err
 }

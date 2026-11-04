@@ -15,7 +15,10 @@ import (
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
-type prepared struct{ binary, prompt, base string }
+type prepared struct {
+	binary, prompt, base string
+	memory               runMemory
+}
 
 func git(ctx context.Context, repo string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...)

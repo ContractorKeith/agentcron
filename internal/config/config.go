@@ -14,7 +14,7 @@ type ValidationError struct{ Err error }
 
 func (e *ValidationError) Error() string { return e.Err.Error() }
 
-const Defaults = "concurrency = 2\nkeep_runs = 50\nallow_agent_scheduling = false\nmdkb_root = \"\"\n"
+const Defaults = "concurrency = 2\nkeep_runs = 50\nallow_agent_scheduling = false\nmdkb_path = \"\"\nmdkb_root = \"\"\n"
 
 type Options struct {
 	ConfigDir string
@@ -27,6 +27,7 @@ type Config struct {
 	Concurrency          int    `toml:"concurrency"`
 	KeepRuns             int    `toml:"keep_runs"`
 	AllowAgentScheduling bool   `toml:"allow_agent_scheduling"`
+	MDKBPath             string `toml:"mdkb_path"`
 	MDKBRoot             string `toml:"mdkb_root"`
 }
 
@@ -59,6 +60,15 @@ func Load(opts Options) (Config, error) {
 	c.DataDir, err = absolutePath(first(opts.DataDir, os.Getenv("AGENTCRON_DATA_DIR"), c.DataDir, defaultData), home)
 	if err != nil {
 		return Config{}, err
+	}
+	c.MDKBRoot = first(c.MDKBRoot, os.Getenv("MDKB_ROOT"))
+	for _, path := range []*string{&c.MDKBPath, &c.MDKBRoot} {
+		if *path != "" {
+			*path, err = absolutePath(*path, home)
+			if err != nil {
+				return Config{}, err
+			}
+		}
 	}
 	if c.Concurrency < 1 {
 		return Config{}, &ValidationError{fmt.Errorf("concurrency must be positive")}
