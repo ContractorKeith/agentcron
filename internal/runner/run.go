@@ -86,9 +86,19 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	cmd.Dir = r.Worktree
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+	inputPath := os.DevNull
 	if j.Runner == "command" {
-		cmd.Stdin = strings.NewReader(prompt)
+		inputPath = filepath.Join(dir, "prompt.txt")
+		if err = os.WriteFile(inputPath, []byte(prompt), 0600); err != nil {
+			return abort(err)
+		}
 	}
+	input, err := os.Open(inputPath)
+	if err != nil {
+		return abort(err)
+	}
+	defer input.Close()
+	cmd.Stdin = input
 	lastOutput := ""
 	if last != nil {
 		lastOutput = filepath.Join(x.DataDir, "runs", last.ID, "stdout.log")
