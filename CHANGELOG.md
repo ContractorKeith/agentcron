@@ -9,3 +9,5 @@
 - M4: Optional per-job memory notes through mdkb, MCP injection and memory diagnostics.
 - M5: Stdio MCP read/write tools, human approval for proposed jobs and recursion guard.
 - M6: Terminal UI for jobs, runs, live logs, run-now, pause/resume and approval.
+- M7: Release workflow, platform archives, Homebrew formula template and tested README quick start.
+- Skeptic round 1: #17, #18, #19, #20, #21, #22, #23, #24, #25, #26, #27, #28.

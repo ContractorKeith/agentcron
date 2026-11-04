@@ -1,6 +1,6 @@
 # agentcron — Build Plan
 
-Status: planned, no code yet (2026-11-04). Sources studied: Hermes Agent cron, Agenvoy
+Status: v0.1.0 release candidate; skeptic-review pending
 scheduler, OpenClaw cron, omarchy-agentcron, reeschan/agentcron; process model mdkb.
 
 ## 1. Goal
