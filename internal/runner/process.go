@@ -1,8 +1,6 @@
 package runner
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ContractorKeith/agentcron/internal/clock"
-	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
 func lock(data, job string) (*os.File, bool, error) {
@@ -81,30 +78,4 @@ func ProcessStart(pid int) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return time.Parse("Mon Jan 2 15:04:05 2006", strings.Join(strings.Fields(string(out)), " "))
-}
-func Cancel(ctx context.Context, db *store.Store, data, id string) error {
-	r, err := db.GetRun(ctx, id)
-	if err != nil {
-		return err
-	}
-	if r.State != "running" || r.PID == nil || r.StartedAt == nil {
-		return fmt.Errorf("run is not running")
-	}
-	start, err := ProcessStart(*r.PID)
-	if err != nil {
-		return err
-	}
-	pgid, err := syscall.Getpgid(*r.PID)
-	if err != nil {
-		return err
-	}
-	if !start.Equal(*r.StartedAt) || pgid != *r.PID {
-		return fmt.Errorf("process identity no longer matches run")
-	}
-	// Serialize cancellation with finalization through the request file. The inline
-	// owner performs escalation and records cancelled, including a fast TERM exit.
-	if err = os.WriteFile(filepath.Join(data, "runs", id, "cancel"), nil, 0600); err != nil {
-		return err
-	}
-	return syscall.Kill(-pgid, syscall.SIGTERM)
 }

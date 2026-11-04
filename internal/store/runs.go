@@ -16,6 +16,8 @@ type Run struct {
 	ScheduledFor time.Time  `json:"scheduled_for"`
 	State        string     `json:"state"`
 	PID          *int       `json:"pid"`
+	OwnerPID     *int       `json:"owner_pid"`
+	ProcStart    *time.Time `json:"proc_start"`
 	ExitCode     *int       `json:"exit_code"`
 	StartedAt    *time.Time `json:"started_at"`
 	EndedAt      *time.Time `json:"ended_at"`
@@ -58,7 +60,20 @@ func (s *Store) ClaimRun(ctx context.Context, id string) error {
 	return s.transition(ctx, id, "queued", "state='claimed'")
 }
 func (s *Store) StartRun(ctx context.Context, id string, pid int, at time.Time, worktree string) error {
-	return s.transition(ctx, id, "claimed", "state='running',pid=?,started_at=?,worktree=?", pid, at.UTC().Format(time.RFC3339Nano), worktree)
+	return s.StartOwnedRun(ctx, Run{ID: id, PID: &pid, StartedAt: &at, Worktree: worktree})
+}
+func (s *Store) StartOwnedRun(ctx context.Context, r Run) error {
+	var proc any
+	if r.ProcStart != nil {
+		proc = r.ProcStart.UTC().Format(time.RFC3339Nano)
+	}
+	return s.transition(ctx, r.ID, "claimed", "state='running',pid=?,started_at=?,worktree=?,owner_pid=?,proc_start=?", r.PID, r.StartedAt.UTC().Format(time.RFC3339Nano), r.Worktree, r.OwnerPID, proc)
+}
+func (s *Store) FinishClaimedRun(ctx context.Context, r Run) error {
+	if r.State != "failed" && r.State != "timed_out" {
+		return fmt.Errorf("invalid claimed outcome")
+	}
+	return s.finishRun(ctx, r, "claimed")
 }
 func (s *Store) FinishRun(ctx context.Context, r Run) error {
 	from := "running"
@@ -71,19 +86,22 @@ func (s *Store) FinishRun(ctx context.Context, r Run) error {
 	default:
 		return fmt.Errorf("invalid terminal state %q", r.State)
 	}
+	return s.finishRun(ctx, r, from)
+}
+func (s *Store) finishRun(ctx context.Context, r Run, from string) error {
 	if r.EndedAt == nil {
 		return fmt.Errorf("ended_at required")
 	}
 	return s.transition(ctx, r.ID, from, "state=?,exit_code=?,ended_at=?,error=?,kept=?,worktree=?", r.State, r.ExitCode, r.EndedAt.UTC().Format(time.RFC3339Nano), r.Error, r.Kept, r.Worktree)
 }
 
-const runColumns = "id,job,trigger,scheduled_for,state,pid,exit_code,started_at,ended_at,COALESCE(worktree,''),kept,COALESCE(error,'')"
+const runColumns = "id,job,trigger,scheduled_for,state,pid,exit_code,started_at,ended_at,COALESCE(worktree,''),kept,COALESCE(error,''),owner_pid,proc_start"
 
 func scanRun(row interface{ Scan(...any) error }) (Run, error) {
 	var r Run
 	var scheduled string
-	var started, ended sql.NullString
-	err := row.Scan(&r.ID, &r.Job, &r.Trigger, &scheduled, &r.State, &r.PID, &r.ExitCode, &started, &ended, &r.Worktree, &r.Kept, &r.Error)
+	var started, ended, proc sql.NullString
+	err := row.Scan(&r.ID, &r.Job, &r.Trigger, &scheduled, &r.State, &r.PID, &r.ExitCode, &started, &ended, &r.Worktree, &r.Kept, &r.Error, &r.OwnerPID, &proc)
 	if err != nil {
 		return r, err
 	}
@@ -93,7 +111,7 @@ func scanRun(row interface{ Scan(...any) error }) (Run, error) {
 	for _, v := range []struct {
 		src sql.NullString
 		dst **time.Time
-	}{{started, &r.StartedAt}, {ended, &r.EndedAt}} {
+	}{{started, &r.StartedAt}, {ended, &r.EndedAt}, {proc, &r.ProcStart}} {
 		if v.src.Valid {
 			t, e := time.Parse(time.RFC3339Nano, v.src.String)
 			if e != nil {

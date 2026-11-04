@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +29,7 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	}
 	// Finalization must survive caller cancellation.
 	persist := context.WithoutCancel(ctx)
+	running := false
 	finish := func(state string, cause error) (store.Run, error) {
 		r.State = state
 		t := x.Clock.Now().UTC()
@@ -37,7 +37,12 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		if cause != nil {
 			r.Error = cause.Error()
 		}
-		err := x.DB.FinishRun(persist, r)
+		var err error
+		if !running && (state == "failed" || state == "timed_out") {
+			err = x.DB.FinishClaimedRun(persist, r)
+		} else {
+			err = x.DB.FinishRun(persist, r)
+		}
 		return r, err
 	}
 	f, acquired, err := lock(x.DataDir, j.Name)
@@ -48,6 +53,15 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 		return finish("skipped", nil)
 	}
 	defer f.Close()
+	activeRuns, err := x.DB.ListRuns(ctx, j.Name, "running", -1)
+	if err != nil {
+		return r, err
+	}
+	for _, active := range activeRuns {
+		if identityLive(active) {
+			return finish("skipped", nil)
+		}
+	}
 	last, err := x.DB.PreviousRun(ctx, r)
 	if err != nil {
 		return r, err
@@ -105,22 +119,26 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	}
 	cmd.Env = runEnv(j, r, lastOutput)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	started := x.Clock.Now().UTC().Truncate(time.Second)
+	started := x.Clock.Now().UTC()
 	if err = cmd.Start(); err != nil {
 		return abort(err)
 	}
 	pid := cmd.Process.Pid
 	if actual, e := ProcessStart(pid); e == nil {
-		started = actual
+		r.ProcStart = &actual
 	}
+	owner := os.Getpid()
+	r.OwnerPID = &owner
 	r.PID = &pid
 	r.StartedAt = &started
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	if err = x.DB.StartRun(persist, r.ID, pid, started, r.Worktree); err != nil {
+	if err = x.DB.StartOwnedRun(persist, r); err != nil {
 		_ = terminate(pid, done, x.Clock, x.Grace)
-		return r, err
+		r.Kept, _ = cleanup(persist, j, r, p.base)
+		return finish("failed", err)
 	}
+	running = true
 	timeout, _ := time.ParseDuration(j.Timeout)
 	state := "succeeded"
 	var waitErr error
@@ -173,13 +191,4 @@ func (x Runner) Run(ctx context.Context, j jobs.Job, r store.Run, approved bool)
 	kept, cleanErr := cleanup(persist, j, r, p.base)
 	r.Kept = kept
 	return finish(state, errors.Join(waitErr, cleanErr))
-}
-func runEnv(j jobs.Job, r store.Run, last string) []string {
-	env := []string{}
-	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(entry, "AGENTCRON_") {
-			env = append(env, entry)
-		}
-	}
-	return append(env, "AGENTCRON_JOB="+j.Name, "AGENTCRON_RUN_ID="+r.ID, "AGENTCRON_SCHEDULED_FOR="+r.ScheduledFor.Format(time.RFC3339Nano), "AGENTCRON_WORKDIR="+r.Worktree, "AGENTCRON_LAST_OUTPUT="+last)
 }
