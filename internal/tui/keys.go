@@ -10,6 +10,17 @@ import (
 
 func (m model) key(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := v.String()
+	if m.confirm != "" {
+		switch key {
+		case "y":
+			id := m.confirm
+			m.confirm = ""
+			return m.action(func(ctx context.Context) error { return m.api.Cancel(ctx, id) })
+		case "n", "esc":
+			m.confirm = ""
+		}
+		return m, nil
+	}
 	if key == "ctrl+c" {
 		return m, tea.Quit
 	}
@@ -34,14 +45,6 @@ func (m model) key(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if key == "q" {
 		return m, tea.Quit
-	}
-	if m.confirm != "" {
-		id := m.confirm
-		m.confirm = ""
-		if key == "y" {
-			return m.action(func(ctx context.Context) error { return m.api.Cancel(ctx, id) })
-		}
-		return m, nil
 	}
 	if key == "?" {
 		m.help = !m.help
@@ -138,7 +141,11 @@ func (m model) action(fn func(context.Context) error) (tea.Model, tea.Cmd) {
 
 // plain prevents log output and user-controlled fields from injecting terminal controls.
 func plain(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
 	return strings.Map(func(r rune) rune {
+		if r == '\r' {
+			return '\n'
+		}
 		if r == '\n' || r >= 32 && r != 127 && !(r >= 0x80 && r < 0xa0) {
 			return r
 		}

@@ -15,7 +15,7 @@ prompt   = "Triage issues opened since your last run. Note what you did in your 
 args     = ["--allowedTools", "Bash(gh issue *)"]
 ```
 
-**Status:** planned, no code yet. See [the plan](docs/PLAN.md) and the
+**Status:** pre-release; see [the plan](docs/PLAN.md) and the
 [glossary](CONTEXT.md). MIT licensed.
 
 Run `agentcron tui` to browse jobs, runs and live logs in your terminal.

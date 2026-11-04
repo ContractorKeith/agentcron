@@ -17,7 +17,9 @@ func (m model) View() tea.View {
 }
 func (m model) render() string {
 	lines := []string{"agentcron"}
-	if !m.daemon {
+	if !m.daemonChecked {
+		lines = append(lines, "checking daemon…")
+	} else if !m.daemon {
 		lines = append(lines, "daemon not running")
 	}
 	switch {
@@ -90,6 +92,9 @@ func (m model) render() string {
 	if m.logID != "" {
 		keys = "tab/s stdout/stderr  esc back  ? help  q quit"
 	}
+	if m.confirm != "" {
+		keys = "y cancel run  n/esc back"
+	}
 	lines = append(lines, keys)
 	for i, s := range lines {
 		s = strings.ReplaceAll(plain(s), "\n", " ")
@@ -146,8 +151,12 @@ func (m model) runRow(r app.Run) string {
 
 // Keep the random suffix visible when a narrow terminal abbreviates run IDs.
 func runID(id string, width int) string {
-	if len(id) <= width {
+	if width < 1 {
+		return ""
+	}
+	runes := []rune(id)
+	if len(runes) <= width {
 		return id
 	}
-	return "…" + id[len(id)-width+1:]
+	return "…" + string(runes[len(runes)-width+1:])
 }

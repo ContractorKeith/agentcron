@@ -22,7 +22,7 @@ type Backend interface {
 	Cancel(context.Context, string) error
 }
 
-// Approver is optional until the approval use case is available.
+// Approver enables human approval of agent-created jobs.
 type Approver interface {
 	Approve(context.Context, string) error
 }
@@ -37,7 +37,7 @@ type model struct {
 	width, height                          int
 	filter, output, logID, confirm, footer string
 	filtering, help, stderr, daemon, busy  bool
-	loading                                bool
+	loading, refreshError, daemonChecked   bool
 	generation                             int
 }
 type tickMsg struct{}
@@ -57,12 +57,11 @@ func New(ctx context.Context, api Backend, c clock.Clock) tea.Model {
 func (m model) Init() tea.Cmd { return tea.Batch(m.load(), m.tick()) }
 func (m model) tick() tea.Cmd {
 	return func() tea.Msg {
-		timer := time.NewTimer(time.Second)
-		defer timer.Stop()
+		timer := m.clock.After(time.Second)
 		select {
 		case <-m.ctx.Done():
 			return nil
-		case <-timer.C:
+		case <-timer:
 			return tickMsg{}
 		}
 	}
@@ -124,10 +123,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		if v.err != nil {
 			m.footer = v.err.Error()
+			m.refreshError = true
 			return m, nil
 		}
+		if m.refreshError {
+			m.footer = ""
+			m.refreshError = false
+		}
 		name := m.jobName()
-		m.jobs, m.daemon = v.jobs, v.daemon
+		m.jobs, m.daemon, m.daemonChecked = v.jobs, v.daemon, true
 		js := m.visibleJobs()
 		m.jobIndex = min(m.jobIndex, max(0, len(js)-1))
 		for i, j := range js {
@@ -156,6 +160,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.output = v.output
 		}
 	case actionMsg:
+		m.refreshError = false
 		m.busy = false
 		if v.err != nil {
 			m.footer = v.err.Error()

@@ -15,7 +15,9 @@ type TUI struct {
 }
 
 func (a TUI) Jobs(ctx context.Context) ([]JobView, error) {
-	return ListJobs(ctx, a.Options, a.Clock)
+	opts := a.Options
+	opts.ReadOnly = true
+	return ListJobs(ctx, opts, a.Clock)
 }
 func (a TUI) Runs(ctx context.Context, name string) ([]Run, error) {
 	return Runs(ctx, a.Options, a.Clock, name, "", 100)
@@ -41,4 +43,8 @@ func (a TUI) DaemonRunning(context.Context) (bool, error) {
 		return false, err
 	}
 	return daemon.Holder(cfg.DataDir) != 0, nil
+}
+
+func (a TUI) Approve(ctx context.Context, name string) error {
+	return ApproveJob(ctx, a.Options, a.Clock, name)
 }
