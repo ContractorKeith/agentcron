@@ -1,0 +1,6 @@
+Job: fixture
+Run: r_20261104T120000Z_ABCD
+Trigger: manual
+Scheduled for: 2026-11-04T12:00:00Z
+Last run state: none
+Last output: none

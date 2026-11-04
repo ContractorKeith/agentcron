@@ -27,6 +27,29 @@ func Read(dir, name string) (Job, error) {
 	return Parse(dir, name, data)
 }
 
+// ReadForRun defers prompt-file availability checks to preflight, so failures
+// receive a blocked_config ledger row rather than disappearing as usage errors.
+func ReadForRun(dir, name string) (Job, error) {
+	if err := ValidateName(name); err != nil {
+		return Job{}, err
+	}
+	data, err := os.ReadFile(filepath.Join(dir, name+".toml"))
+	if err != nil {
+		return Job{}, err
+	}
+	return parse(dir, name, data, false)
+}
+func ReadPrompt(dir string, j Job) (string, error) {
+	if err := j.Validate(dir); err != nil {
+		return "", err
+	}
+	if j.PromptFile == "" {
+		return j.Prompt, nil
+	}
+	b, err := os.ReadFile(filepath.Join(dir, j.PromptFile))
+	return string(b), err
+}
+
 func List(dir string) ([]Entry, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {

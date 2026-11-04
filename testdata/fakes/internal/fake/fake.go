@@ -80,18 +80,34 @@ func run() error {
 	case "noisy":
 		chunk := strings.Repeat("x", 1024)
 		for range 10 * 1024 {
-			if _, err := io.WriteString(os.Stdout, chunk); err != nil {
+			stream := io.Writer(os.Stdout)
+			switch os.Getenv("FAKE_NOISY_STREAM") {
+			case "stderr":
+				stream = os.Stderr
+			case "both":
+				stream = io.MultiWriter(os.Stdout, os.Stderr)
+			}
+			if _, err := io.WriteString(stream, chunk); err != nil {
 				return err
 			}
 		}
+	case "dirty":
+		return os.WriteFile("result.txt", []byte("DONE\n"), 0600)
 	case "spawn-child":
+		terms := make(chan os.Signal, 1)
+		signal.Notify(terms, syscall.SIGTERM)
+		defer signal.Stop(terms)
 		child := exec.Command(os.Args[0])
 		child.Env = childEnv()
 		if err := child.Start(); err != nil {
 			return err
 		}
 		// The runner signals the process group; reap the child before returning normally.
-		time.Sleep(duration)
+		select {
+		case <-time.After(duration):
+		case <-terms:
+		}
+		_ = child.Process.Signal(syscall.SIGTERM)
 		return child.Wait()
 	default:
 		return fmt.Errorf("unknown FAKE_MODE %q", mode)

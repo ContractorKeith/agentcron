@@ -78,6 +78,14 @@ func (s *jobSession) sync(ctx context.Context, persist bool) error {
 				state.NextFire = &fires[0]
 			}
 			state.UpdatedAt = s.now
+			last, e := s.db.ListRuns(ctx, entry.Name, "", 1)
+			if e != nil {
+				return e
+			}
+			if len(last) > 0 {
+				view.LastState = last[0].State
+				state.LastRunID = last[0].ID
+			}
 			if err := s.persist(ctx, state, persist); err != nil {
 				return err
 			}

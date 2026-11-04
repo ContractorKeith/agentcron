@@ -85,6 +85,7 @@ func newRoot() *cobra.Command {
 		},
 	})
 	jobCommands(root, &opts, output)
+	runCommands(root, &opts, output)
 	return root
 }
 
