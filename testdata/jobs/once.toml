@@ -1,0 +1,8 @@
+schedule = "at 2026-11-05T09:00:00-05:00"
+timezone = "UTC"
+runner = "claude"
+prompt = "Fixture once"
+timeout = "30m"
+memory = true
+catchup = "one"
+created_by = "cli"

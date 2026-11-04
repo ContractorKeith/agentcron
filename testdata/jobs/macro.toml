@@ -1,0 +1,8 @@
+schedule = "@daily"
+timezone = "UTC"
+runner = "claude"
+prompt = "Fixture macro"
+timeout = "30m"
+memory = true
+catchup = "one"
+created_by = "cli"

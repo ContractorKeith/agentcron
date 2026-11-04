@@ -1,0 +1,8 @@
+schedule = "30 1 * * *"
+timezone = "America/New_York"
+runner = "claude"
+prompt = "Fixture zoned"
+timeout = "30m"
+memory = true
+catchup = "one"
+created_by = "cli"

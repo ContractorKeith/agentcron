@@ -8,7 +8,7 @@ knowledge base. "Done" for v1 is every row marked v1 in `docs/PLAN.md` §3 passi
 `scripts/accept.sh` on macOS and Linux.
 
 ## Status
-M0 — scaffold, store, fakes and CI: done (#1).
+M1 — jobs and schedules: done (#2).
 
 ## Commands
 ```bash

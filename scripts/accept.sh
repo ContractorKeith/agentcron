@@ -45,9 +45,41 @@ golden() { # name, args...
   "$bin" "$@" --json | diff - "testdata/golden/$name.json" >/dev/null || { echo "golden mismatch: $name"; exit 1; }
 }
 golden doctor doctor
+export TZ=UTC
+now=2026-11-04T12:00:00Z
+cp testdata/jobs/*.toml "$XDG_CONFIG_HOME/agentcron/jobs/"
+"$bin" pause macro --now "$now" >/dev/null
+golden ls ls --now "$now"
+for job in cron macro interval once zoned; do
+  golden "show-$job" show "$job" --now "$now"
+done
+golden next next --now "$now"
+golden next-spring next --schedule "30 2 * * *" --timezone America/New_York --count 3 --now 2026-03-07T12:00:00Z
+golden next-fall next --schedule "30 1 * * *" --timezone America/New_York --count 3 --now 2026-11-01T04:00:00Z
 
 echo "== live checks"
 "$bin" init >/dev/null                                                   # init is idempotent
 "$bin" --data-dir "$scratch/nowhere" doctor >/dev/null 2>&1 && exit 1 || test $? -eq 3  # uninitialised exits 3
+
+"$bin" add preview --schedule @daily --runner command --command cat --prompt hi --dry-run --now "$now" >"$scratch/preview"
+test ! -e "$XDG_CONFIG_HOME/agentcron/jobs/preview.toml"
+"$bin" add roundtrip --schedule @daily --runner claude --prompt hi --now "$now" >/dev/null
+"$bin" add roundtrip --schedule @daily --runner claude --prompt hi >/dev/null 2>&1 && exit 1 || test $? -eq 2
+"$bin" rm roundtrip --dry-run >/dev/null
+"$bin" show roundtrip --json >/dev/null
+"$bin" rm roundtrip >/dev/null
+"$bin" show roundtrip --json >/dev/null 2>&1 && exit 1 || test $? -eq 2
+"$bin" show macro --json --now "$now" | grep '"paused":true' >/dev/null
+"$bin" resume macro >/dev/null
+"$bin" show macro --json | grep '"paused":false' >/dev/null
+printf 'schedule = "@daily"
+runner = "claude"
+prompt = "hi"
+timeout = "0s"
+' >"$XDG_CONFIG_HOME/agentcron/jobs/invalid.toml"
+"$bin" show invalid --json >"$scratch/out" 2>"$scratch/err" && exit 1 || test $? -eq 2
+grep timeout "$scratch/err" >/dev/null
+"$bin" ls --json | grep '"error":' >/dev/null
+"$bin" rm invalid >/dev/null
 
 echo "accept: ok"

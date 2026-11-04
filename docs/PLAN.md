@@ -153,7 +153,7 @@ Environment given to every run: `AGENTCRON_JOB`, `AGENTCRON_RUN_ID`,
 ```
 agentcron init                                  create config, jobs and data dirs (idempotent)
 agentcron add <name> --schedule S --runner R [--prompt T | --prompt-file F] [--repo P] [--base B]
-          [--timezone Z] [--arg A]... [--timeout D] [--expect RE] [--no-memory] [--dry-run]
+          [--timezone Z] [--arg A]... [--command C]... [--timeout D] [--expect RE] [--no-memory] [--dry-run]
 agentcron ls [--json]                           jobs with schedule, next fire, last state
 agentcron show <name> [--json]                  job, state, next 5 fires, last 5 runs
 agentcron rm <name> [--dry-run]                 removes the file; runs stay in the ledger
@@ -214,6 +214,8 @@ Parallel: M3 ∥ M4 after M2 (merge M3 first). M5 ∥ M6 after M3 (merge M5 firs
 only add one line to the cobra root).
 
 ## 8. Acceptance
+
+Tests and accept.sh pin time with the hidden global flag `--now <RFC3339>`.
 
 `scripts/accept.sh` is the acceptance. It builds, runs the gate (race tests, gofmt, vet,
 staticcheck), isolates HOME/XDG/git config in a scratch dir, puts the fake runners first
