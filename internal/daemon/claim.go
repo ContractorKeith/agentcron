@@ -34,7 +34,7 @@ func (e *Engine) Claim(ctx context.Context, defs map[string]jobs.Job, states map
 		st := states[r.Job]
 		_, exists := defs[r.Job]
 		if busy[r.Job] || !exists || st.Paused || !st.Approved || st.Orphaned {
-			at := e.Clock.Now()
+			at := e.Clock.Now().UTC()
 			r.State = "skipped"
 			r.EndedAt = &at
 			r.Error = "job unavailable or already running"
