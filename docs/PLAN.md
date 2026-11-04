@@ -166,7 +166,7 @@ Environment given to every run: `AGENTCRON_JOB`, `AGENTCRON_RUN_ID`,
 ```
 agentcron init                                  create config, jobs and data dirs (idempotent)
 agentcron add <name> --schedule S --runner R [--prompt T | --prompt-file F] [--repo P] [--base B]
-          [--timezone Z] [--arg A]... [--command C]... [--timeout D] [--expect RE] [--memory | --no-memory] [--dry-run]
+          [--timezone Z] [--arg A]... [--command C]... [--timeout D] [--catchup one|none] [--expect RE] [--memory | --no-memory] [--dry-run]
 agentcron ls [--json]                           jobs with schedule, next fire, last state
 agentcron show <name> [--json]                  job, state, next 5 fires, last 5 runs
 agentcron rm <name> [--dry-run]                 removes the file; runs stay in the ledger

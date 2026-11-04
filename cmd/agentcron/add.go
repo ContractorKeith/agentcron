@@ -34,6 +34,7 @@ func addJobCommand(root *cobra.Command, opts *app.Options, output outputFunc, cu
 		return output(cmd, j, "Added %s\n", j.Name)
 	}}
 	f := cmd.Flags()
+	f.StringVar(&j.Catchup, "catchup", "one", "Missed fires: one or none")
 	f.StringVar(&j.Schedule, "schedule", "", "Schedule expression")
 	f.StringVar(&j.Runner, "runner", "", "claude, codex or command")
 	f.StringVar(&j.Prompt, "prompt", "", "Prompt text")

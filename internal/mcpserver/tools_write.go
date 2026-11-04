@@ -9,6 +9,7 @@ import (
 )
 
 type createInput struct {
+	Catchup    *string  `json:"catchup,omitempty"`
 	Name       string   `json:"name"`
 	Schedule   string   `json:"schedule"`
 	Runner     string   `json:"runner"`
@@ -34,6 +35,9 @@ func addWrites(s *mcp.Server, st *server) {
 			j.Args = in.Args
 		}
 		j.Command = in.Command
+		if in.Catchup != nil {
+			j.Catchup = *in.Catchup
+		}
 		if in.Timeout != nil {
 			j.Timeout = *in.Timeout
 		}
