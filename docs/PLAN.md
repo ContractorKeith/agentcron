@@ -92,7 +92,7 @@ Rules:
   `UPDATE runs SET state='claimed' WHERE id=? AND state='queued'` and checks rows affected.
 - Child processes run in their own process group; timeout and cancel signal the group
   (SIGTERM, 10 s grace, SIGKILL).
-- v1 contains runs by process group; a descendant that calls setsid escapes teardown (OS sandboxing is Later).
+- Descendants that leave the run's process group (`setsid`, `setpgid`, or shell job control) are not torn down; OS sandboxing is Later. On Linux, stopping the service still kills them through the unit's cgroup.
 
 ### Dependencies and why
 
