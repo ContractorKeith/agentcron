@@ -37,6 +37,7 @@ type Definition struct {
 	Unit        string            `json:"unit"`
 	Commands    [][]string        `json:"commands"`
 	Environment map[string]string `json:"environment"`
+	Warnings    []string          `json:"warnings,omitempty"`
 }
 type State struct {
 	Installed bool `json:"installed"`
@@ -112,6 +113,10 @@ func Apply(ctx context.Context, o Options, action string, dry bool, cmd Commande
 		}
 		out, runErr := cmd.Run(ctx, c[0], c[1:]...)
 		if runErr != nil {
+			if action == "uninstall" && o.OS == "linux" {
+				d.Warnings = append(d.Warnings, runErr.Error()+": "+strings.TrimSpace(out))
+				continue
+			}
 			if o.OS == "darwin" && c[1] == "bootout" && notLoaded(out+" "+runErr.Error()) {
 				continue
 			}
