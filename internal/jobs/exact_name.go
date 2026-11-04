@@ -21,7 +21,7 @@ func requireExact(dir, name string) error {
 		return err
 	}
 	if !exists {
-		return os.ErrNotExist
+		return missingJobError{name}
 	}
 	return nil
 }

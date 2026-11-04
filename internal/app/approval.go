@@ -11,6 +11,13 @@ import (
 	"github.com/ContractorKeith/agentcron/internal/store"
 )
 
+// This user-facing policy message is shared verbatim by CLI and MCP.
+type schedulingRefusal struct{}
+
+func (schedulingRefusal) Error() string {
+	return "Scheduling from inside a run requires allow_agent_scheduling = true in config.toml"
+}
+
 // CheckMCPWrite prevents a scheduled agent from recursively changing schedules.
 func CheckMCPWrite(opts Options) error {
 	return checkScheduling(opts)
@@ -25,7 +32,7 @@ func checkScheduling(opts Options) error {
 		return err
 	}
 	if os.Getenv("AGENTCRON_RUN_ID") != "" && !cfg.AllowAgentScheduling {
-		return &Error{Refused, fmt.Errorf("MCP writes inside a run require allow_agent_scheduling = true in config.toml")}
+		return &Error{Refused, schedulingRefusal{}}
 	}
 	return nil
 }

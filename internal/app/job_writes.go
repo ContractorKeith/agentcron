@@ -24,12 +24,11 @@ func addJob(ctx context.Context, opts Options, c clock.Clock, j Job, dry bool, s
 		return "", err
 	}
 	defer s.db.Close()
-	exists, err := jobs.Exists(s.config.JobsDir(), j.Name)
-	if err != nil {
+	if err := jobs.CheckAvailable(s.config.JobsDir(), j.Name); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			err = fmt.Errorf("job %q already exists", j.Name)
+		}
 		return "", &Error{Usage, err}
-	}
-	if exists {
-		return "", &Error{Usage, fmt.Errorf("job %q already exists", j.Name)}
 	}
 	// Creation provenance belongs to the interface, never to caller-supplied TOML.
 	j.CreatedBy = source
