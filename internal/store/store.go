@@ -1,0 +1,91 @@
+// Package store owns the SQLite ledger and its migrations.
+package store
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"net/url"
+	"path/filepath"
+
+	_ "modernc.org/sqlite"
+)
+
+type Store struct{ db *sql.DB }
+
+// Open creates or opens the ledger and applies migrations atomically.
+func Open(ctx context.Context, path string) (*Store, error) {
+	return open(ctx, path, true)
+}
+
+// OpenExisting inspects an existing ledger without creating or migrating it.
+func OpenExisting(ctx context.Context, path string) (*Store, error) {
+	return open(ctx, path, false)
+}
+
+func open(ctx context.Context, path string, create bool) (*Store, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	uri := url.URL{Scheme: "file", Path: absolute}
+	q := url.Values{}
+	q.Add("_pragma", "busy_timeout(5000)")
+	if !create {
+		q.Set("mode", "ro")
+	}
+	uri.RawQuery = q.Encode()
+	db, err := sql.Open("sqlite", uri.String())
+	if err != nil {
+		return nil, err
+	}
+	s := &Store{db: db}
+	if err = db.PingContext(ctx); err == nil && create {
+		_, err = db.ExecContext(ctx, "PRAGMA journal_mode=WAL")
+		if err == nil {
+			err = s.migrate(ctx)
+		}
+	}
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("open ledger: %w", err)
+	}
+	return s, nil
+}
+
+func (s *Store) Close() error { return s.db.Close() }
+func (s *Store) SchemaVersion(ctx context.Context) (int, error) {
+	var version int
+	err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version), 0) FROM schema_version").Scan(&version)
+	return version, err
+}
+
+// ImmediateTx exposes queries on the connection holding the write reservation.
+// The connection and any rows must not escape the callback.
+type ImmediateTx struct{ conn *sql.Conn }
+
+func (tx *ImmediateTx) Exec(ctx context.Context, query string, args ...any) (int64, error) {
+	result, err := tx.conn.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// WithImmediateTx reserves the writer before invoking fn, even before its first write.
+func (s *Store) WithImmediateTx(ctx context.Context, fn func(*ImmediateTx) error) error {
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if _, err = conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return err
+	}
+	defer func() { _, _ = conn.ExecContext(context.Background(), "ROLLBACK") }()
+	if err = fn(&ImmediateTx{conn: conn}); err != nil {
+		return err
+	}
+	_, err = conn.ExecContext(ctx, "COMMIT")
+	return err
+}
