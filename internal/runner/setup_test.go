@@ -36,7 +36,7 @@ func TestSetupTimeoutIsBounded(t *testing.T) {
 	j.Timeout = "1s"
 	pidFile := filepath.Join(x.DataDir, "hook-pid")
 	hook := filepath.Join(j.Repo, ".git", "hooks", "post-checkout")
-	script := "#!/bin/sh\necho $$ > '" + pidFile + "'\nexec sleep 5\n"
+	script := "#!/bin/sh\necho $$ > '" + pidFile + "'\nexec sleep 30\n"
 	if e := os.WriteFile(hook, []byte(script), 0700); e != nil {
 		t.Fatal(e)
 	}
@@ -49,7 +49,7 @@ func TestSetupTimeoutIsBounded(t *testing.T) {
 	}()
 	start := x.Clock.Now()
 	r := executeRun(t, x, j, true)
-	if r.State != "timed_out" || !strings.Contains(r.Error, "setup timed out") || x.Clock.Now().Sub(start) >= 5*time.Second {
+	if r.State != "timed_out" || !strings.Contains(r.Error, "setup timed out") || x.Clock.Now().Sub(start) >= 3*time.Second {
 		t.Fatalf("run=%+v elapsed=%v", r, x.Clock.Now().Sub(start))
 	}
 	trees, e := git(context.Background(), j.Repo, "worktree", "list", "--porcelain")
